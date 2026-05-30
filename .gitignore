@@ -1,1 +1,14 @@
+# Block large single-cell data objects
+*.rds
+*.RData
+*.h5ad
 
+# Temporary R files and logs
+.Rhistory
+.RDataTmp
+*.log
+
+# Cache directories
+.Rproj.user/
+.venv/
+__pycache__/
