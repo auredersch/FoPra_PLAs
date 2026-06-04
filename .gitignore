@@ -12,3 +12,6 @@
 .Rproj.user/
 .venv/
 __pycache__/
+
+# omnipath
+.omnipathr-log/
