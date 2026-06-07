@@ -5,7 +5,7 @@
 #SBATCH --output=slurm_logs/liana_%A_%a.out
 #SBATCH --error=slurm_logs/liana_%A_%a.err
 #SBATCH --time=12:00:00
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --cpus-per-task=4
 
 set -euo pipefail
@@ -14,7 +14,7 @@ cd "$SLURM_SUBMIT_DIR"
 
 DATA_DIR="/nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets"
 OUTPUT_DIR="/nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling"
-SCRIPT="/nfs/home/students/i.kaciran/FoPra_PLAs/scripts/run_liana.R"
+SCRIPT="/nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/run_liana.R"
 
 FILES=(
   "gated_ImmuneAging.rds"

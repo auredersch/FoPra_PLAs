@@ -63,6 +63,39 @@ message(
   paste(levels(Idents(seurat_obj)), collapse = ", ")
 )
 
+metadata_cols <- colnames(seurat_obj@meta.data)
+
+lineage_col <- dplyr::case_when(
+  "lineage" %in% metadata_cols ~ "lineage",
+  "Lineage" %in% metadata_cols ~ "Lineage",
+  "cell_lineage" %in% metadata_cols ~ "cell_lineage",
+  TRUE ~ NA_character_
+)
+
+# Remove cells without lineage annotation
+lineage_values <- seurat_obj@meta.data[[lineage_col]]
+
+n_missing_lineage <- sum(is.na(lineage_values))
+
+message("Cells with missing lineage: ", n_missing_lineage)
+
+if (n_missing_lineage > 0) {
+  seurat_obj <- subset(
+    seurat_obj,
+    cells = colnames(seurat_obj)[!is.na(lineage_values)]
+  )
+
+  message("Cells after removing missing lineage: ", ncol(seurat_obj))
+}
+
+# Re-set identities after subsetting
+Idents(seurat_obj) <- lineage_col
+
+message(
+  "Active identities after removing NAs: ",
+  paste(levels(Idents(seurat_obj)), collapse = ", ")
+)
+
 # ------------------------------------------------------------
 # Run LIANA
 # ------------------------------------------------------------
