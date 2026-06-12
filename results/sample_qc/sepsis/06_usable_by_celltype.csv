@@ -1,0 +1,7 @@
+"celltype_id","total_pairs","usable_pairs","usable_samples","retained_cells","retained_PLA","mean_freq_PLA_usable"
+"Monocytes",40,25,25,20431,17158,0.811112816563826
+"CD8 T cells",40,39,39,26762,7457,0.275396040698885
+"CD4 T cells",40,40,40,50729,5680,0.121072982202993
+"NK cells",40,29,29,10395,2232,0.212913928148952
+"B cells",40,39,39,21220,482,0.02752654201447
+"DCs",40,1,1,302,202,0.66887417218543

@@ -1,0 +1,26 @@
+"lineage","marker_label","n_PLA","n_platelet_free","pla_median","platelet_free_median","median_difference","platelet_free_above_pla_q25"
+"B cells","CD41",0,79,NA,0,NA,NA
+"B cells","CD42b",0,79,NA,0,NA,NA
+"B cells","CD61",0,79,NA,0,NA,NA
+"B cells","CD62P",0,79,NA,0,NA,NA
+"B cells","CLEC2",0,79,NA,0,NA,NA
+"DCs","CD41",0,1511,NA,0,NA,NA
+"DCs","CD42b",0,1511,NA,0,NA,NA
+"DCs","CD61",0,1511,NA,0,NA,NA
+"DCs","CD62P",0,1511,NA,0,NA,NA
+"DCs","CLEC2",0,1511,NA,0,NA,NA
+"NK cells","CD41",0,34,NA,0,NA,NA
+"NK cells","CD42b",0,34,NA,0,NA,NA
+"NK cells","CD61",0,34,NA,0,NA,NA
+"NK cells","CD62P",0,34,NA,0,NA,NA
+"NK cells","CLEC2",0,34,NA,0,NA,NA
+"Macrophages","CD41",174,2575,2.23428228626091,0,2.23428228626091,0
+"Macrophages","CD42b",174,2575,0,0,0,1
+"Macrophages","CD61",174,2575,1.17517419422311,0,1.17517419422311,0.32621359223301
+"Macrophages","CD62P",174,2575,0,0,0,1
+"Macrophages","CLEC2",174,2575,0,0,0,1
+"Neutrophils","CD41",44,1463,3.53671672292586,0,3.53671672292586,0
+"Neutrophils","CD42b",44,1463,0,0,0,1
+"Neutrophils","CD61",44,1463,2.04331179946801,0,2.04331179946801,0.0307587149692413
+"Neutrophils","CD62P",44,1463,0.59792235988042,0,0.59792235988042,1
+"Neutrophils","CLEC2",44,1463,0.6446842173149,0,0.6446842173149,1
