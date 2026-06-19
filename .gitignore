@@ -16,4 +16,5 @@ __pycache__/
 # omnipath
 .omnipathr-log/
 
-.slurm_logs/
+slurm_logs/slurm_logs/*.out
+slurm_logs/*.err
