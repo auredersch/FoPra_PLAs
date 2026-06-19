@@ -17,5 +17,3 @@ __pycache__/
 .omnipathr-log/
 
 .slurm_logs/
-
-.gitattributesslurm_logs/

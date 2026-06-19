@@ -1,0 +1,7 @@
+Analyzing: vaccine
+Input: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/vaccine_liana_results_pla_status.rds
+Saved plot: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/analysis/plots/vaccine/vaccine_dotplot_top30.pdf
+Could not save heatmap: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/analysis/plots/vaccine/vaccine_heat_freq.pdf
+Reason: number of observations in bottom annotation should be as same as ncol
+of the matrix.
+slurmstepd: error: *** JOB 6076471 ON elmo.exbio.wzw.tum.de CANCELLED AT 2026-06-12T19:47:49 ***

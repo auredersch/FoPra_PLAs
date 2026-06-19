@@ -1,0 +1,8 @@
+Job ID: 6076468
+Array job ID: 6076467
+Array task ID: 0
+Rscript: /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Input file: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/immune_aging_liana_results_pla_status.rds
+Output directory: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/analysis
+Node: ernie.exbio.wzw.tum.de
+Start time: Fr 12. Jun 19:47:34 CEST 2026

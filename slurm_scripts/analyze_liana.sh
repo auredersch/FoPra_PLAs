@@ -18,11 +18,11 @@ SCRIPT="/nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/analyze_liana
 RSCRIPT="/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript"
 
 FILES=(
-  "immune_aging_liana_results.rds"
-  "heart_liana_results.rds"
-  "sepsis_liana_results.rds"
-  "vaccine_liana_results.rds"
-  "our_data_liana_results.rds"
+  "immune_aging_liana_results_pla_status.rds"
+  "heart_liana_results_pla_status.rds"
+  "sepsis_liana_results_pla_status.rds"
+  "vaccine_liana_results_pla_status.rds"
+  "our_data_liana_results_pla_status.rds"
 )
 
 TASK_ID="$SLURM_ARRAY_TASK_ID"

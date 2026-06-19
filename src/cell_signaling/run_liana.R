@@ -89,7 +89,7 @@ if (n_missing_lineage > 0) {
 }
 
 # Re-set identities after subsetting
-Idents(seurat_obj) <- lineage_col
+Idents(seurat_obj) <- pla_status
 
 message(
   "Active identities after removing NAs: ",
@@ -165,7 +165,7 @@ liana_result <- list(
 
 output_file <- file.path(
   output_dir,
-  paste0(dataset_name, "_liana_results.rds")
+  paste0(dataset_name, "_liana_results_pla_status.rds")
 )
 
 saveRDS(

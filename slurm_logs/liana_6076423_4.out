@@ -1,0 +1,9 @@
+Job ID: 6076423
+Array job ID: 6076423
+Array task ID: 4
+Dataset: our_data
+Input file: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_our_dataset_processed.rds
+Node: compms-cpu-1.exbio.wzw.tum.de
+Start time: Fri Jun 12 17:41:08 UTC 2026
+Finished dataset: our_data
+End time: Fri Jun 12 17:42:42 UTC 2026

@@ -1,0 +1,8 @@
+Job ID: 6076471
+Array job ID: 6076467
+Array task ID: 3
+Rscript: /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Input file: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/vaccine_liana_results_pla_status.rds
+Output directory: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/analysis
+Node: elmo.exbio.wzw.tum.de
+Start time: Fr 12. Jun 19:47:34 CEST 2026

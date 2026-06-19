@@ -1,0 +1,40 @@
+During startup - Warning messages:
+1: Setting LC_TIME failed, using "C" 
+2: Setting LC_MONETARY failed, using "C" 
+3: Setting LC_PAPER failed, using "C" 
+4: Setting LC_MEASUREMENT failed, using "C" 
+Input file: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_vaccine_processed.rds
+Dataset: vaccine
+Output directory: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling
+R version: R version 4.3.3 (2024-02-29)
+LIANA version: 0.1.14
+Seurat version: 5.3.0
+Loading Seurat object...
+Number of cells: 138368
+Number of features: 25207
+Default assay: RNA
+Active identities: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+Cells with missing lineage: 365
+Cells with missing pla_status: 8854
+Cells after removing missing lineage/pla_status: 129514
+Active identities after removing NAs: PLA, platelet-free
+Running LIANA...
+Expression from the `RNA` assay will be used
+Running LIANA with `colLabels`/`Idents` as labels (matching column in metadata not found).
+LIANA: LR summary stats calculated!
+Now Running: Natmi
+Now Running: Connectome
+Now Running: Logfc
+Now Running: Sca
+Now Running: Cellphonedb
+Completed methods: natmi, connectome, logfc, sca, cellphonedb
+Aggregating LIANA results...
+Now aggregating natmi
+Now aggregating connectome
+Now aggregating logfc
+Now aggregating sca
+Now aggregating cellphonedb
+Aggregating Ranks
+Successfully saved LIANA results:
+/nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/vaccine_liana_results_pla_status.rds
+Finished.

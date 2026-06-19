@@ -1,0 +1,4 @@
+Analyzing: sepsis
+Input: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/sepsis_liana_results_pla_status.rds
+Saved plot: /nfs/home/students/i.kaciran/FoPra_PLAs/results/cell_signaling/analysis/plots/sepsis/sepsis_dotplot_top30.pdf
+slurmstepd: error: *** JOB 6076470 ON ernie.exbio.wzw.tum.de CANCELLED AT 2026-06-12T19:47:49 ***
