@@ -21,3 +21,7 @@ slurm_logs/*.err
 
 multinichenetr/
 nichenetr/
+# Differential CCC large result tables/objects
+results/differential_ccs/**/*.csv
+results/differential_ccs/**/*.rds
+
