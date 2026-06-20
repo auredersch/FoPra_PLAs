@@ -25,3 +25,5 @@ nichenetr/
 results/differential_ccs/**/*.csv
 results/differential_ccs/**/*.rds
 
+data/
+
