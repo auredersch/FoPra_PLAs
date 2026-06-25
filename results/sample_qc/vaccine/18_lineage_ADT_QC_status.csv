@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 "lineage","n_markers_tested","n_markers_pass","mean_median_difference","max_pf_overlap","lineage_adt_status"
 "B cells",5,4,0.484463493629702,0.189500894810101,"ADT_ok"
 "CD4 T cells",5,5,0.564324508417974,0.09564525240076,"ADT_ok"
@@ -5,3 +6,12 @@
 "DCs",5,3,0.548801642172147,0.175947590079551,"ADT_ok"
 "Monocytes",5,5,0.666378805215715,0.087719298245614,"ADT_ok"
 "NK cells",5,5,0.929488664115343,0.0116684710694094,"ADT_ok"
+=======
+"lineage","n_markers_total","n_markers_tested","n_markers_pass","mean_median_difference","max_pf_overlap","lineage_adt_status"
+"B cells",5,5,2,0.484463493629702,0.189500894810101,"ADT_ok"
+"CD4 T cells",5,5,3,0.564324508417974,0.09564525240076,"ADT_ok"
+"CD8 T cells",5,5,2,0.535761189511249,0.0581643048995091,"ADT_ok"
+"DCs",5,5,1,0.542085098626774,0.173913043478261,"ADT_suspicious"
+"Monocytes",5,5,5,0.666378805215715,0.087719298245614,"ADT_ok"
+"NK cells",5,5,5,0.929488664115343,0.0116684710694094,"ADT_ok"
+>>>>>>> 92464b0a76383f5b6ce643764ef351a48d1cd9cb

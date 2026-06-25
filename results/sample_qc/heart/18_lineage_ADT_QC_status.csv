@@ -1,0 +1,6 @@
+"lineage","n_markers_total","n_markers_tested","n_markers_pass","mean_median_difference","max_pf_overlap","lineage_adt_status"
+"B cells",5,0,0,NA,NA,"ADT_not_testable"
+"DCs",5,0,0,NA,NA,"ADT_not_testable"
+"NK cells",5,0,0,NA,NA,"ADT_not_testable"
+"Macrophages",5,5,1,0.681891296096804,1,"ADT_suspicious"
+"Neutrophils",5,5,2,1.36452701991784,1,"ADT_ok"

@@ -1,2 +1,6 @@
 "total_pairs","usable_pairs","unstable_pairs","low_neg_pairs","retained_cells","retained_PLA","total_cells","total_PLA","retained_cell_fraction","retained_PLA_fraction"
+<<<<<<< HEAD
 167,126,20,41,108471,18825,129514,39609,0.837523356548327,0.475270771794289
+=======
+167,123,26,41,108080,18616,129514,39609,0.834504377905091,0.46999419323891
+>>>>>>> 92464b0a76383f5b6ce643764ef351a48d1cd9cb

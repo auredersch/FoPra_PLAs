@@ -1,0 +1,8 @@
+"lineage","n_markers_total","n_markers_tested","n_markers_pass","mean_median_difference","max_pf_overlap","lineage_adt_status"
+"B cells",3,3,1,1.54098931290607,1,"ADT_suspicious"
+"CD4 T cells",3,3,1,1.52192349654273,1,"ADT_suspicious"
+"CD8 T cells",3,3,1,1.37891323875438,1,"ADT_suspicious"
+"DCs",3,0,0,NA,NA,"ADT_not_testable"
+"NK cells",3,3,1,1.24024396693672,1,"ADT_suspicious"
+"Monocytes",3,3,1,0.998542182952791,0.699956082564778,"ADT_suspicious"
+"Neutrophils",3,3,2,1.360494343176,0.434782608695652,"ADT_ok"
