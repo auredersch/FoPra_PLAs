@@ -55,7 +55,6 @@ dir.create(file.path(project_root, "results/extended_lists"), recursive = TRUE, 
 print(paste("Lade Datensatz:", CURRENT_FILE, "als", DATASET_SHORT))
 pbmc <- readRDS(PATH_DATA)
 
-# Spalten-Harmonisierung für die Metadaten (Sicherheit für deine UMAPs & GT)
 if(!"celltype_clean" %in% colnames(pbmc@meta.data) && "lineage" %in% colnames(pbmc@meta.data)) {
     pbmc$celltype_clean <- pbmc$lineage
 }
