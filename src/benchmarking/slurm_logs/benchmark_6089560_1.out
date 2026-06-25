@@ -1,0 +1,43 @@
+======================================================
+Starte Task 1 für gated_heart_processed.rds mit R 4.4.2
+======================================================
+[1] "Lade Datensatz: gated_heart_processed.rds als heart"
+224 genes were extracted from file.
+character(0)
+52 genes were extracted from file.
+character(0)
+[1] "--- Calculating Scores using AUCell ---"
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 

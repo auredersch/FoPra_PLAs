@@ -1,2 +1,2 @@
 "total_pairs","usable_pairs","unstable_pairs","low_neg_pairs","retained_cells","retained_PLA","total_cells","total_PLA","retained_cell_fraction","retained_PLA_fraction"
-114,38,76,74,5880,218,6360,220,0.924528301886792,0.990909090909091
+114,40,54,74,5921,218,6360,220,0.930974842767296,0.990909090909091

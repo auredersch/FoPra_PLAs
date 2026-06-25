@@ -1,0 +1,45 @@
+======================================================
+Starte Task 3 für gated_vaccine_processed.rds mit R 4.4.2
+======================================================
+[1] "Lade Datensatz: gated_vaccine_processed.rds als vaccine"
+224 genes were extracted from file.
+character(0)
+52 genes were extracted from file.
+character(0)
+[1] "--- Calculating Scores using AUCell ---"
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 
+null device 
+          1 

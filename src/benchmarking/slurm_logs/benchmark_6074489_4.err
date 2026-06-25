@@ -1,0 +1,53 @@
+Loading required package: SeuratObject
+Loading required package: sp
+
+Attaching package: ‘SeuratObject’
+
+The following objects are masked from ‘package:base’:
+
+    intersect, t
+
+Registered S3 method overwritten by 'pROC':
+  method   from            
+  plot.roc spatstat.explore
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Package 'mclust' version 6.1.2
+Type 'citation("mclust")' for citing this R package in publications.
+
+Attaching package: ‘mclust’
+
+The following object is masked from ‘package:dplyr’:
+
+    count
+
+Genes in the gene sets NOT available in the dataset: 
+	Platelet_Orig: 	1 (0% of 224)
+Lade existierende Liste...
+Genes in the gene sets NOT available in the dataset: 
+	Platelet_Score: 	1 (0% of 268)
+Error in `case_when()`:
+! `..1 (left)` must be a logical vector, not a logical matrix.
+Backtrace:
+    ▆
+ 1. ├─dplyr::case_when(...)
+ 2. │ └─vctrs::vec_case_when(...)
+ 3. └─rlang::abort(message = message, call = call)
+Execution halted

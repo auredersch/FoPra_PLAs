@@ -1,8 +1,8 @@
 "celltype_id","total_pairs","usable_pairs","usable_samples","retained_cells","retained_PLA","mean_freq_PLA_usable"
 "Macrophages",21,14,14,2749,174,0.018589873095687
 "Neutrophils",22,7,7,1507,44,0.0204532263355793
-"B cells",18,2,2,79,0,0
+"B cells",18,3,3,99,0,0
 "CD4 T cells",9,0,0,0,0,NA
 "CD8 T cells",3,0,0,0,0,NA
-"DCs",22,14,14,1511,0,0
+"DCs",22,15,15,1532,0,0
 "NK cells",19,1,1,34,0,0
