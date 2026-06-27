@@ -54,7 +54,19 @@ print(paste("Filter-Modus:", FILTER_MODE))
 print(paste("====================================================="))
 
 seurat_obj <- readRDS(file.path(INPUT_DIR, CURRENT_FILE))
-DefaultAssay(seurat_obj) <- "ADT"
+
+if (dataset_type == "immune_aging") {
+  if ("ADT_corrected" %in% Assays(seurat_obj)) {
+    DefaultAssay(seurat_obj) <- "ADT_corrected"
+    print("-> [Immune Aging] Nutze ADT_corrected für das GMM-Gating.")
+  } else {
+    warning("-> Warnung: ADT_corrected nicht gefunden, weiche auf ADT aus.")
+    DefaultAssay(seurat_obj) <- "ADT"
+  }
+} else {
+  DefaultAssay(seurat_obj) <- "ADT"
+}
+
 all_features <- rownames(seurat_obj)
 
 seurat_obj$automative_gating_single <- "platelet-free"
@@ -205,29 +217,32 @@ ggsave(paste0(OUT_DIR, "barplot_fraction_biologist.png"), plot = p1, width = 6, 
 ggsave(paste0(OUT_DIR, "barplot_fraction_gmm_1d.png"), plot = p2, width = 6, height = 5)
 ggsave(paste0(OUT_DIR, "barplot_fraction_gmm_2d.png"), plot = p3, width = 6, height = 5)
 
-reduction <- "ADT_umap"
+reduction <- if (dataset_type == "immune_aging") "GEX_umap_mrvi" else "umap_totalVI"
+
 if (reduction %in% names(seurat_obj@reductions)) {
-  Key(seurat_obj[[reduction]]) <- "adtumap_"
+  # Key-Korrektur umgehen falls nötig
   old_assay <- DefaultAssay(seurat_obj)
   if ("RNA" %in% Assays(seurat_obj)) DefaultAssay(seurat_obj) <- "RNA"
   
   png(paste0(OUT_DIR, "1_Reference_Lineage_UMAP.png"), 1000, 700)
-  print(DimPlot(seurat_obj, group.by="lineage", reduction = reduction, label=TRUE, repel=TRUE) + labs(title=paste("Reference Lineage -", dataset_type)))
+  print(DimPlot(seurat_obj, group.by="lineage", reduction = reduction, label=TRUE, repel=TRUE) + labs(title=paste("Reference Lineage (", reduction, ") -", dataset_type)))
   dev.off()
   
   png(paste0(OUT_DIR, "2_Biologist_Gating_UMAP.png"), 1000, 700)
-  print(DimPlot(seurat_obj, group.by="pla_status", reduction = reduction) + labs(title=paste("Biologist Gating -", dataset_type)))
+  print(DimPlot(seurat_obj, group.by="pla_status", reduction = reduction) + labs(title=paste("Biologist Gating (", reduction, ") -", dataset_type)))
   dev.off()
   
   png(paste0(OUT_DIR, "3_GMM_Single_Gating_UMAP.png"), 1000, 700)
-  print(DimPlot(seurat_obj, group.by="automative_gating_single", reduction = reduction) + labs(title=paste("1D GMM (CD41) -", dataset_type)))
+  print(DimPlot(seurat_obj, group.by="automative_gating_single", reduction = reduction) + labs(title=paste("1D GMM CD41 (", reduction, ") -", dataset_type)))
   dev.off()
   
   png(paste0(OUT_DIR, "4_GMM_Double_Gating_UMAP.png"), 1000, 700)
-  print(DimPlot(seurat_obj, group.by="automative_gating_double", reduction = reduction) + labs(title=paste("2D GMM (CD41 +", second_marker_label, ") -", dataset_type)))
+  print(DimPlot(seurat_obj, group.by="automative_gating_double", reduction = reduction) + labs(title=paste("2D GMM CD41+", second_marker_label, " (", reduction, ") -", dataset_type)))
   dev.off()
   
   DefaultAssay(seurat_obj) <- old_assay
+} else {
+  warning(paste("Warnung: Gewünschte Reduktion", reduction, "nicht im Objekt gefunden! Überspringe UMAP-Plots."))
 }
 
 print(paste("Fertig mit Datensatz:", dataset_type))

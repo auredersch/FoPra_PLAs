@@ -1,0 +1,6 @@
+"celltype_clean","celltype.l3","TP","FP","FN","TN","Mean_Z","n","Accuracy","Balanced_Accuracy","Dataset","Method","Mode","Filter_Mode","GT_Source"
+"B cells","B cells",47,100,3191,4012,1.65898551251325,7350,0.552244897959184,0.495098033204202,"immune_aging","AUCell","gmm_dist_dual","qc_tolerant","gmm_dual"
+"CD4 T cells","CD4 T cells",0,17,0,14671,-0.463075439148127,14688,0.998842592592593,0.499421296262294,"immune_aging","AUCell","gmm_dist_dual","qc_tolerant","gmm_dual"
+"NK cells","NK cells",4,134,92,4757,-0.376029814225657,4987,0.954682173651494,0.507134702879905,"immune_aging","AUCell","gmm_dist_dual","qc_tolerant","gmm_dual"
+"Monocytes","Monocytes",0,1477,0,10454,-0.261749566115987,11931,0.876204844522672,0.438102422224616,"immune_aging","AUCell","gmm_dist_dual","qc_tolerant","gmm_dual"
+"Neutrophils","Neutrophils",0,72,29,754,-0.460463988177146,855,0.88187134502924,0.456416464338479,"immune_aging","AUCell","gmm_dist_dual","qc_tolerant","gmm_dual"

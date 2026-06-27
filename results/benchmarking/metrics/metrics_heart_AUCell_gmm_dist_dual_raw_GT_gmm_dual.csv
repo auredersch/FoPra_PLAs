@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"heart","AUCell","MANNE_DN",FALSE,"raw","gmm_dual","gmm_dist_dual",0.5166991433658,0.160187667560322,0.0875457875457875,0.940944881889764,717,7473,45,3506,-0.914527975653458,1.95545269648234

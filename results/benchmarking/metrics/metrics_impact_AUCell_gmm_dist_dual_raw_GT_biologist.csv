@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"impact","AUCell","MANNE_DN",FALSE,"raw","biologist","gmm_dist_dual",0.591544093186552,0.150897368879596,0.103119790426292,0.281168831168831,433,3766,1107,13997,-0.0371628837768741,4.42767391999563

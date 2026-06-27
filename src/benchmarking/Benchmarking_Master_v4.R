@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------
-# Benchmarking_Master_v2_MultiCohort.R - CLEAN MULTI-DATASET VERSION
+# Benchmarking_Master_v5_MultiCohort.R - FINAL GROUND TRUTH SELECTOR WITH QC
 # -------------------------------------------------------------------
 start_time <- Sys.time() 
 
@@ -19,41 +19,51 @@ args <- commandArgs(trailingOnly = TRUE)
 METHOD_NAME    <- if(length(args) >= 1) args[1] else "AUCell"
 SIG_NAME       <- if(length(args) >= 2) args[2] else "MANNE_DN"
 SIG_FILE_BASE  <- if(length(args) >= 3) args[3] else "MANNE_COVID19_COMBINED_COHORT_VS_HEALTHY_DONOR_PLATELETS_DN.v2025.1.Hs"
-USE_EXTENSION  <- if(length(args) >= 4) as.logical(args[4]) else TRUE
-THRESH_MODE    <- if(length(args) >= 5) args[5] else "kmeans" 
-CURRENT_FILE   <- if(length(args) >= 6) args[6] else "gated_sepsis_processed.rds" 
+USE_EXTENSION  <- if(length(args) >= 4) as.logical(args[4]) else FALSE
+THRESH_MODE    <- if(length(args) >= 5) args[5] else "gmm_dist_dual" 
+CURRENT_FILE   <- if(length(args) >= 6) args[6] else "sepsis_qc_strict_automated_gating.rds" 
+GT_SOURCE      <- if(length(args) >= 7) args[7] else "biologist"    # other: "gmm_dual" "gmm_single"
 
-# --- DATASET MAP ---
-datasets_map <- list(
-  "gated_heart_processed.rds"        = "heart",
-  "gated_sepsis_processed.rds"       = "sepsis",
-  "gated_vaccine_processed.rds"      = "vaccine",
-  "gated_ImmuneAging.rds"            = "immune_aging",
-  "gated_our_dataset_processed.rds"  = "our_data"
+# --- DATASET MAP (FIXED WITH grepl & impact) ---
+get_dataset_short <- function(filename) {
+  if (grepl("heart", filename, ignore.case = TRUE)) return("heart")
+  if (grepl("sepsis", filename, ignore.case = TRUE)) return("sepsis")
+  if (grepl("vaccine", filename, ignore.case = TRUE)) return("vaccine")
+  if (grepl("immune_aging", filename, ignore.case = TRUE)) return("immune_aging")
+  if (grepl("impact", filename, ignore.case = TRUE)) return("impact")
+  return("unknown")
+}
+
+EXTRACTED_MODE <- case_when(
+  grepl("raw", CURRENT_FILE) ~ "raw",
+  grepl("qc_tolerant", CURRENT_FILE) ~ "qc_tolerant",
+  grepl("qc_strict", CURRENT_FILE) ~ "qc_strict",
+  TRUE ~ "raw"
 )
 
-DATASET_SHORT <- datasets_map[[CURRENT_FILE]]
-if(is.null(DATASET_SHORT)) stop("Fehler: Datensatz-Dateiname nicht in datasets_map gefunden!")
+DATASET_SHORT <- get_dataset_short(CURRENT_FILE)
+if(DATASET_SHORT == "unknown") stop("Fehler: Datensatz-Kürzel konnte nicht ermittelt werden!")
 
 # --- CONFIGURATION ---
-# TIPP: Falls Datensätze Punkte statt Unterstriche nutzen, fängt das diese Logik ab:
-INPUT_DIR   <- "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets/"
+INPUT_DIR   <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
 PATH_DATA   <- file.path(INPUT_DIR, CURRENT_FILE)
 
 # --- OUTPUT STRUKTUR ---
 RDS_OUT_DIR <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets/benchmarked_objects/"
 PLOT_BASE   <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/benchmarking/"
-OUT_DIR     <- file.path(PLOT_BASE, DATASET_SHORT, paste0(METHOD_NAME, "_Ext", USE_EXTENSION, "_", THRESH_MODE), "/")
+OUT_DIR <- file.path(PLOT_BASE, DATASET_SHORT, EXTRACTED_MODE, paste0(METHOD_NAME, "_Ext", USE_EXTENSION, "_", THRESH_MODE, "_GT_", GT_SOURCE), "/")
 
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(RDS_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
-dir.create(file.path(project_root, "results/metrics"), recursive = TRUE, showWarnings = FALSE)
-dir.create(file.path(project_root, "results/celltype_data"), recursive = TRUE, showWarnings = FALSE)
-dir.create(file.path(project_root, "results/extended_lists"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(project_root, "results/benchmarking/metrics"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(project_root, "results/benchmarking/celltype_data"), recursive = TRUE, showWarnings = FALSE)
 
 # --- DATEN LADEN ---
 print(paste("Lade Datensatz:", CURRENT_FILE, "als", DATASET_SHORT))
 pbmc <- readRDS(PATH_DATA)
+
+# Test
+head(rownames(pbmc), 10)
 
 if(!"celltype_clean" %in% colnames(pbmc@meta.data) && "lineage" %in% colnames(pbmc@meta.data)) {
     pbmc$celltype_clean <- pbmc$lineage
@@ -62,15 +72,85 @@ if(!"celltype.l3" %in% colnames(pbmc@meta.data)) {
     pbmc$celltype.l3 <- pbmc$celltype_clean
 }
 
-# Findet automatisch heraus, ob pla.status oder pla_status existiert
-if("pla_status" %in% colnames(pbmc@meta.data)) {
-    GT_COLUMN <- "pla_status"
-} else if("pla.status" %in% colnames(pbmc@meta.data)) {
-    GT_COLUMN <- "pla.status"
-} else {
-    stop("Fehler: Weder 'pla_status' noch 'pla.status' in den Metadaten gefunden!")
+QC_BASE <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/sample_qc/"
+
+if (EXTRACTED_MODE != "raw") {
+  qc_table_file <- file.path(QC_BASE, DATASET_SHORT, "19_final_sample_lineage_QC_table.csv")
+  
+  if (file.exists(qc_table_file)) {
+    print(paste("-> Filtere Zellen für Benchmarking basierend auf Modus:", EXTRACTED_MODE))
+    kollege_qc <- read.csv(qc_table_file)
+    
+    if (EXTRACTED_MODE == "qc_strict") {
+      trusted_pairs <- kollege_qc %>% 
+        filter(final_pair_status %in% c("trusted", "trusted_but_extreme_PLA"))
+    } else if (EXTRACTED_MODE == "qc_tolerant") {
+      trusted_pairs <- kollege_qc %>% 
+        filter(final_pair_status %in% c("trusted", "trusted_but_extreme_PLA", 
+                                        "sample_ADT_suspicious", "lineage_ADT_suspicious"))
+    }
+    
+    actual_sample_col <- case_when(
+      "donor_id" %in% colnames(pbmc@meta.data) ~ "donor_id",
+      "sample_id" %in% colnames(pbmc@meta.data) ~ "sample_id",
+      TRUE ~ "sample"
+    )
+    
+    pbmc$csv_celltype_name <- case_when(
+      pbmc$celltype_clean == "CD4 T" ~ "CD4 T cells",
+      pbmc$celltype_clean == "CD8 T cells" ~ "CD8 T cells",
+      TRUE ~ pbmc$celltype_clean
+    )
+    
+    pbmc$match_key <- paste0(pbmc@meta.data[[actual_sample_col]], "_", pbmc$csv_celltype_name)
+    trusted_keys <- paste0(trusted_pairs$sample_id, "_", trusted_pairs$celltype_id)
+    
+    keep_cells <- colnames(pbmc)[pbmc$match_key %in% trusted_keys]
+    
+    if(length(keep_cells) < 20) {
+       stop("Kritischer Fehler: Zu wenige Zellen nach QC-Filter übrig!")
+    }
+    
+    pbmc <- subset(pbmc, cells = keep_cells)
+    print(paste("-> Filterung abgeschlossen. Verbleibende Zellen für Evaluierung:", ncol(pbmc)))
+  } else {
+    warning("-> Keine QC-Tabelle gefunden. Benchmarking läuft auf ungefiltertem Objekt!")
+  }
 }
-POSITIVE_VAL <- "PLA"
+
+# --- DYNAMISCHE SELEKTION DER GROUND TRUTH ---
+if (GT_SOURCE == "biologist") {
+    print("-> Nutze die manuelle Annotation der Biologin (pla_status) als Ground Truth.")
+    if("pla_status" %in% colnames(pbmc@meta.data)) {
+        GT_COLUMN <- "pla_status"
+    } else if("pla.status" %in% colnames(pbmc@meta.data)) {
+        GT_COLUMN <- "pla.status"
+    } else {
+        stop("Fehler: Spalte 'pla_status' wurde im Objekt nicht gefunden!")
+    }
+    POSITIVE_VAL <- "PLA"
+    
+} else if (GT_SOURCE == "gmm_dual") {
+    print("-> Nutze dein automatisches 2D GMM Gating (automative_gating_double) als Ground Truth.")
+    if("automative_gating_double" %in% colnames(pbmc@meta.data)) {
+        GT_COLUMN <- "automative_gating_double"
+    } else {
+        stop("Fehler: Spalte 'automative_gating_double' fehlt!")
+    }
+    POSITIVE_VAL <- "PLA"
+
+} else if (GT_SOURCE == "gmm_single") {
+    print("-> [Automatic 1D GMM Gating (automative_gating_single) als Ground Truth.")
+    if("automative_gating_single" %in% colnames(pbmc@meta.data)) {
+        GT_COLUMN <- "automative_gating_single"
+    } else {
+        stop("Fehler: Spalte 'automative_gating_single' fehlt!")
+    }
+    POSITIVE_VAL <- "PLA"
+
+}else {
+    stop("Fehler: Ungültige GT_SOURCE übergeben!")
+}
 
 # --- GENLISTE LADEN ---
 base_dir <- getwd()
@@ -82,13 +162,22 @@ genes <- read_gene_list(PATH_SIG)
 IMMUNE_SIG <- "GOBP_LEUKOCYTE_ACTIVATION_INVOLVED_IN_INFLAMMATORY_RESPONSE.v2025.1.Hs"
 PATH_IMMUNE_SIG <- file.path(project_root, "data", "signatures", paste0(IMMUNE_SIG, ".csv"))
 immune_genes <- read_gene_list(PATH_IMMUNE_SIG)
-immune_genes <- intersect(immune_genes, rownames(pbmc))
+#immune_genes <- intersect(immune_genes, rownames(pbmc))
+immune_genes <- intersect(immune_genes, rownames(pbmc[["RNA"]]))
 
-# --- SCORING LOGIK ---
+# Scoring
+
+if ("RNA" %in% Assays(pbmc)) {
+    DefaultAssay(pbmc) <- "RNA"
+    print("-> DefaultAssay global für das Scoring auf 'RNA' umgestellt.")
+} else {
+    warning("-> WARNUNG: Kein RNA-Assay im Objekt gefunden!")
+}
+
 print(paste("--- Calculating Scores using", METHOD_NAME, "---"))
 
 if (METHOD_NAME == "AUCell" || METHOD_NAME == "WeightedAUCell") {
-    expression_matrix <- GetAssayData(pbmc, layer = "data")
+    expression_matrix <- GetAssayData(pbmc, assay = "RNA", layer = "data")
     rankings <- AUCell_buildRankings(expression_matrix, plotStats=FALSE)
     auc_orig <- AUCell_calcAUC(list(Platelet_Orig = genes), rankings)
     pbmc$Raw_Score_Original <- as.numeric(getAUC(auc_orig)[1, ])
@@ -99,21 +188,23 @@ if (METHOD_NAME == "AUCell" || METHOD_NAME == "WeightedAUCell") {
 } else if (METHOD_NAME == "UCell") {
     pbmc <- AddModuleScore_UCell(pbmc, features = list(Platelet_Orig = genes), name = NULL)
     pbmc$Raw_Score_Original <- pbmc$Platelet_Orig
-
     pbmc <- AddModuleScore_UCell(pbmc, features = list(Immune_Score = immune_genes), name = NULL)
     pbmc$Immune_Score <- pbmc$Immune_Score 
 
 } else if (METHOD_NAME == "AddModuleScore") {
     pbmc <- AddModuleScore(pbmc, features = list(genes), name = "AMS_Orig")
     pbmc$Raw_Score_Original <- pbmc$AMS_Orig1
-
     pbmc <- AddModuleScore(pbmc, features = list(immune_genes), name = "AMS_Immune")
     pbmc$Immune_Score <- pbmc$AMS_Immune1
 }
 
-# 2. Schritt: Gensequenz-Erweiterung (optional)
+# Gensequenz-Erweiterung
 if (USE_EXTENSION) {
-    EXT_FILE <- paste0("results/extended_lists/ext_", DATASET_SHORT, "_", SIG_NAME, "_", METHOD_NAME, ".csv")
+    EXT_DIR <- file.path(project_root, "results/extended_lists")
+    dir.create(EXT_DIR, recursive = TRUE, showWarnings = FALSE) # Sicherheitsnetz!
+    
+    EXT_FILE <- file.path(EXT_DIR, paste0("ext_", DATASET_SHORT, "_", SIG_NAME, "_", METHOD_NAME, ".csv"))
+    
     if (file.exists(EXT_FILE)) {
         message("Lade existierende Liste...")
         extended_genes <- read.csv(EXT_FILE)$geneName
@@ -128,7 +219,7 @@ if (USE_EXTENSION) {
     final_genes <- genes
 }
 
-# 3. Schritt: Finales Scoring
+# Finales Scoring
 if (METHOD_NAME == "AUCell" || METHOD_NAME == "WeightedAUCell") {
     pbmc$Raw_Score <- as.numeric(getAUC(AUCell_calcAUC(list(Platelet_Score = final_genes), rankings))[1, ])
 } else if (METHOD_NAME == "UCell") {
@@ -193,22 +284,17 @@ if (THRESH_MODE == "youden") {
 
     if(THRESH_MODE == "gmm_dist_dual") {
         idx <- which(pbmc$Platelet_High)
-
         fit_imm <- Mclust(auc_imm[idx], G = 2)
         imm_high <- which.max(fit_imm$parameters$mean)
-
         pbmc$Immune_High <- FALSE
         pbmc$Immune_High[idx] <- fit_imm$classification == imm_high
         THRESHOLD_I <- min(pbmc$Immune_Z[pbmc$Immune_High], na.rm = TRUE)
     }
-
     THRESHOLD_Z <- min(pbmc$Z_Score[pbmc$Platelet_High], na.rm = TRUE)
 } else if (THRESH_MODE == "kmeans"){
     set.seed(42)
     km_data <- FetchData(pbmc, vars = c("Z_Score", "Immune_Z")) %>% drop_na()
-
     km_fit <- kmeans(km_data, centers = 4, nstart = 50, iter.max = 100)
-
     pbmc$KMeans_Cluster <- NA
     pbmc$KMeans_Cluster[rownames(km_data)] <- km_fit$cluster
 
@@ -216,22 +302,18 @@ if (THRESH_MODE == "youden") {
         mutate(Cluster = km_fit$cluster) %>%
         group_by(Cluster) %>%
         summarise(
-            Mean_Z = mean(Z_Score),
-            Mean_Immune_Z = mean(Immune_Z),
+            Mean_Z = mean(Z_Score), Mean_Immune_Z = mean(Immune_Z),
             Score_Sum = Mean_Z + Mean_Immune_Z,
-            Min_Z = min(Z_Score),
-            Min_Immune = min(Immune_Z)
+            Min_Z = min(Z_Score), Min_Immune = min(Immune_Z)
         )
-
     positive_cluster <- cluster_stats$Cluster[which.max(cluster_stats$Score_Sum)]
-
     pbmc$Platelet_High <- pbmc$KMeans_Cluster == positive_cluster
     pbmc$Immune_High <- pbmc$KMeans_Cluster == positive_cluster
     THRESHOLD_Z <- cluster_stats$Min_Z[cluster_stats$Cluster == positive_cluster]
     THRESHOLD_I <- cluster_stats$Min_Immune[cluster_stats$Cluster == positive_cluster]
 }
 
-# --- EXPLIZITE TYPBEREINIGUNG FÜR DIE KLASSIFIFIKATION ---
+# --- KLASSIFIKATION ---
 positive_condition <- if (THRESH_MODE == "kmeans") {
     pbmc@meta.data$KMeans_Cluster == positive_cluster
 } else if (THRESH_MODE == "gmm_dist_platelet") {
@@ -243,7 +325,6 @@ positive_condition <- if (THRESH_MODE == "kmeans") {
 }
 
 positive_condition <- as.logical(as.vector(positive_condition))
-
 pbmc$Prediction <- factor(ifelse(positive_condition, "Positive", "Negative"), levels = c("Negative","Positive"))
 
 gt_values <- as.character(pbmc@meta.data[[GT_COLUMN]])
@@ -258,11 +339,11 @@ pbmc$Error_Type <- case_when(
 )
 
 # --- SAVE RDS ---
-RDS_FILE_NAME <- paste0(RDS_OUT_DIR, "pbmc_benchmarked_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, ".rds")
+RDS_FILE_NAME <- paste0(RDS_OUT_DIR, "pbmc_benchmarked_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".rds")
 message("Speichere Seurat-Objekt unter: ", RDS_FILE_NAME)
 saveRDS(pbmc, file = RDS_FILE_NAME)
 
-# Zeit und Metriken
+# Metriken schreiben
 runtime_min <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
 tp <- sum(pbmc$Error_Type == "TP", na.rm = TRUE); fp <- sum(pbmc$Error_Type == "FP", na.rm = TRUE)
 fn <- sum(pbmc$Error_Type == "FN", na.rm = TRUE); tn <- sum(pbmc$Error_Type == "TN", na.rm = TRUE)
@@ -270,227 +351,86 @@ prec <- if((tp + fp) > 0) tp / (tp + fp) else 0
 rec  <- if((tp + fn) > 0) tp / (tp + fn) else 0
 f1   <- if((prec + rec) > 0) 2 * prec * rec / (prec + rec) else 0
 
-# Speichern der Hauptmetriken
 write.csv(data.frame(
-    Dataset = DATASET_SHORT,
-    Method = METHOD_NAME, 
-    Signature = SIG_NAME, 
-    Ext = USE_EXTENSION, 
-    Mode = THRESH_MODE, 
-    AUC = as.numeric(auc(roc_obj)), 
-    F1 = f1, 
-    Prec = prec, 
-    Rec = rec, 
-    TP = tp, 
-    FP = fp, 
-    FN = fn, 
-    TN = tn, 
-    Threshold_Value = THRESHOLD_Z,
-    Runtime_Min = runtime_min
+    Dataset = DATASET_SHORT, Method = METHOD_NAME, Signature = SIG_NAME, Ext = USE_EXTENSION, 
+    Filter_Mode = EXTRACTED_MODE, GT_Source = GT_SOURCE, Threshold_Mode = THRESH_MODE,
+    AUC = as.numeric(auc(roc_obj)), F1 = f1, Prec = prec, Rec = rec, TP = tp, FP = fp, FN = fn, TN = tn, 
+    Threshold_Value = THRESHOLD_Z, Runtime_Min = runtime_min
 ),
-paste0("results/metrics/metrics_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, ".csv"), row.names = FALSE)
+paste0("results/metrics/metrics_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), row.names = FALSE)
 
 ct_data <- pbmc@meta.data %>% 
     group_by(celltype_clean, celltype.l3) %>% 
     summarise(
-        TP = sum(Error_Type == "TP", na.rm = TRUE),
-        FP = sum(Error_Type == "FP", na.rm = TRUE),
-        FN = sum(Error_Type == "FN", na.rm = TRUE),
-        TN = sum(Error_Type == "TN", na.rm = TRUE),
-        Mean_Z = mean(Z_Score, na.rm = TRUE),
-        n = n(),
-        .groups = "drop" 
+        TP = sum(Error_Type == "TP", na.rm = TRUE), FP = sum(Error_Type == "FP", na.rm = TRUE),
+        FN = sum(Error_Type == "FN", na.rm = TRUE), TN = sum(Error_Type == "TN", na.rm = TRUE),
+        Mean_Z = mean(Z_Score, na.rm = TRUE), n = n(), .groups = "drop" 
     ) %>%
     mutate(
         Accuracy = (TP + TN) / n,
         Balanced_Accuracy = 0.5 * ((TP / (TP + FN + 1e-6)) + (TN / (TN + FP + 1e-6))),
-        Dataset = DATASET_SHORT,
-        Method = METHOD_NAME, 
-        Mode = THRESH_MODE
+        Dataset = DATASET_SHORT, Method = METHOD_NAME, Mode = THRESH_MODE, Filter_Mode = EXTRACTED_MODE, GT_Source = GT_SOURCE
     )
 
 write.csv(ct_data, 
-          paste0("results/celltype_data/ct_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, ".csv"), 
+          paste0("results/celltype_data/ct_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), 
           row.names = FALSE)
 
-# --- PLOTS ---
+#CHOSEN_REDUCTION <- "GEX_umap" 
+available_reductions <- names(pbmc@reductions)
+print(paste("Verfügbare UMAPs/PCAs in dieser Kohorte:", paste(available_reductions, collapse=", ")))
 
-# A. UMAPS
+CHOSEN_REDUCTION <- if (DATASET_SHORT == "immune_aging") "GEX_umap_mrvi" else "umap_totalVI"
+
+if (!CHOSEN_REDUCTION %in% names(pbmc@reductions)) {
+  warning(paste("Gewünschte Reduktion", CHOSEN_REDUCTION, "fehlt. Weiche auf erste verfügbare aus."))
+  CHOSEN_REDUCTION <- names(pbmc@reductions)[1]
+}
+
+print(paste("-> Für Visualisierung gewählte RNA-Reduktion:", CHOSEN_REDUCTION))
+
 png(paste0(OUT_DIR, "1_Reference_UMAP.png"), 1200, 800)
-print(DimPlot(pbmc, group.by="celltype_clean", label=T, repel=T) + labs(title=paste("Reference Gating -", DATASET_SHORT)))
+print(DimPlot(pbmc, reduction = CHOSEN_REDUCTION, group.by="celltype_clean", label=T, repel=T) + 
+      labs(title=paste("Reference Gating (", CHOSEN_REDUCTION, ") -", DATASET_SHORT)))
 dev.off()
 
 png(paste0(OUT_DIR, "2_Score_UMAP.png"), 900, 700)
-print(FeaturePlot(pbmc, features="Raw_Score") + scale_colour_viridis_c(option="magma") + labs(title="Raw Score Intensity"))
+print(FeaturePlot(pbmc, reduction = CHOSEN_REDUCTION, features="Raw_Score") + 
+      scale_colour_viridis_c(option="magma") + 
+      labs(title="Raw Score Intensity"))
 dev.off()
 
 png(paste0(OUT_DIR, "3_Error_Mapping_UMAP.png"), 1000, 800)
-print(DimPlot(pbmc, group.by="Error_Type") + scale_color_manual(values=c("TP"="#228B22","FP"="#FF4500","FN"="#1E90FF","TN"="#D3D3D3")) + 
+print(DimPlot(pbmc, reduction = CHOSEN_REDUCTION, group.by="Error_Type") + 
+      scale_color_manual(values=c("TP"="#228B22","FP"="#FF4500","FN"="#1E90FF","TN"="#D3D3D3")) + 
       labs(title="Error Mapping", subtitle=paste("Threshold Z =", round(THRESHOLD_Z, 2))))
 dev.off()
 
-# B. VERTEILUNGEN 
 png(paste0(OUT_DIR, "4a_Density_ZScore_PLA_Status.png"), 1200, 800)
 print(ggplot(pbmc@meta.data, aes(x=Z_Score, fill=!!sym(GT_COLUMN))) + 
-      geom_density(alpha=0.5) + 
-      theme_minimal() + 
+      geom_density(alpha=0.5) + theme_minimal() + 
       scale_fill_manual(values=c("PLA"="#FF4B4B", "platelet-free"="#4B8BFF")) +
       geom_vline(xintercept=THRESHOLD_Z, linetype="dashed", color="red", size=1) +
-      labs(title="Global Z-Score Distribution", 
-           subtitle=paste("Red Line = Current Threshold:", round(THRESHOLD_Z, 2)),
-           x="Z-Score", y="Density", fill="PLA Status"))
+      labs(title="Global Z-Score Distribution", subtitle=paste("Threshold Z:", round(THRESHOLD_Z, 2)), x="Z-Score", fill="PLA Status"))
 dev.off()
 
 png(paste0(OUT_DIR, "4b_Density_RawScore_PLA_Status.png"), 1200, 800)
 print(ggplot(pbmc@meta.data, aes(x=Raw_Score, fill=!!sym(GT_COLUMN))) + 
-      geom_density(alpha=0.5) + 
-      theme_minimal() + 
-      scale_fill_manual(values=c("PLA"="#FF4B4B", "platelet-free"="#4B8BFF")) +
-      labs(title="Global Raw Score Distribution", 
-           x="Raw Score", y="Density", fill="PLA Status"))
+      geom_density(alpha=0.5) + theme_minimal() + 
+      scale_fill_manual(values=c("PLA"="#FF4B4B", "platelet-free"="#4B8BFF")) + labs(title="Global Raw Score Distribution"))
 dev.off()
 
-# Density: Nur Platelets
-if("Platelet" %in% pbmc$celltype.l3) {
-    png(paste0(OUT_DIR, "5a_Density_ZScore_Platelets_Only.png"), 1000, 600)
-    print(ggplot(subset(pbmc, celltype.l3 == "Platelet")@meta.data, aes(x=Z_Score)) + 
-          geom_density(fill="red", alpha=0.4) + 
-          theme_minimal() + 
-          labs(title="Z-Score Distribution: Only Platelets (L3 Reference)"))
-    dev.off()
-
-    png(paste0(OUT_DIR, "5b_Density_RawScore_Platelets_Only.png"), 1000, 600)
-    print(ggplot(subset(pbmc, celltype.l3 == "Platelet")@meta.data, aes(x=Raw_Score)) + 
-          geom_density(fill="darkred", alpha=0.4) + 
-          theme_minimal() + 
-          labs(title="Raw Score Distribution: Only Platelets (L3 Reference)"))
-    dev.off()
-}
-
-# Violin: Raw Score pro Zelltyp 
 png(paste0(OUT_DIR, "6a_Violin_RawScore_Celltypes.png"), 1200, 600)
-print(VlnPlot(pbmc, features="Raw_Score", group.by="celltype_clean", pt.size=0) + labs(title="Raw Score Distribution"))
+print(VlnPlot(pbmc, features="Raw_Score", group.by="celltype_clean", pt.size=0))
 dev.off()
 
 png(paste0(OUT_DIR, "6b_Split_Violin_PLA_Status.png"), 1400, 700)
 print(VlnPlot(pbmc, features="Raw_Score", group.by="celltype_clean", split.by=GT_COLUMN, pt.size=0) +
-      scale_fill_manual(values=c("PLA"="#FF4B4B", "platelet-free"="#4B8BFF")) + labs(title="Score Comparison: PLA vs. Free"))
+      scale_fill_manual(values=c("PLA"="#FF4B4B", "platelet-free"="#4B8BFF")))
 dev.off()
 
-# 7. Density nach Error-Klasse 
-png(paste0(OUT_DIR, "7_Density_Error_Types_ZScore.png"), 1000, 600)
-print(ggplot(pbmc@meta.data, aes(x=Z_Score)) + geom_density(fill="steelblue", alpha=0.6) + 
-      facet_wrap(~Error_Type, scales="free_y") + geom_vline(xintercept=THRESHOLD_Z, linetype="dashed", color="red") + 
-      theme_classic() + labs(title="Z-Score Density by Error Type"))
-dev.off()
-
-# 8. FP Count Barplot
-fp_data <- pbmc@meta.data %>% filter(Error_Type == "FP") %>% group_by(celltype_clean) %>% tally() %>% arrange(desc(n))
-if(nrow(fp_data) > 0) {
-    png(paste0(OUT_DIR, "8_FP_Count_per_Celltype.png"), 1000, 700)
-    print(ggplot(fp_data, aes(x=reorder(celltype_clean, -n), y=n, fill=celltype_clean)) + 
-          geom_bar(stat="identity") + geom_text(aes(label=n), vjust=-0.5) + theme_minimal() + 
-          theme(axis.text.x=element_text(angle=45, hjust=1), legend.position="none") + labs(title="False Positives per Celltype"))
-    dev.off()
-}
-
-# C. PERFORMANCE KURVEN
 png(paste0(OUT_DIR, "9_ROC_Curve.png"), 700, 700)
 plot(roc_obj, col="#E41A1C", lwd=3, main=paste("ROC AUC:", round(auc(roc_obj),3)))
 dev.off()
 
-eval_df <- data.frame(score=pbmc$Z_Score, gt=pbmc$GT_Response) %>% arrange(desc(score)) %>%
-           mutate(tp_c=cumsum(gt), fp_c=cumsum(1-gt), prec=tp_c/(tp_c+fp_c), rec=tp_c/sum(gt))
-png(paste0(OUT_DIR, "10_PR_Curve.png"), 800, 700)
-print(ggplot(eval_df, aes(x=rec, y=prec)) + geom_line(color="#E41A1C", linewidth=1.2) + 
-      theme_minimal() + labs(title="Precision-Recall Curve", x="Recall", y="Precision"))
-dev.off()
-
-png(paste0(OUT_DIR, "11_Error_Composition_Bar.png"), 1200, 700)
-err_perc <- pbmc@meta.data %>% group_by(celltype_clean, Error_Type) %>% tally() %>% 
-            group_by(celltype_clean) %>% mutate(p=n/sum(n)*100)
-print(ggplot(err_perc, aes(x=celltype_clean, y=p, fill=Error_Type)) + geom_bar(stat="identity") + 
-      scale_fill_manual(values=c("TP"="#228B22","FP"="#FF4500","FN"="#1E90FF","TN"="#D3D3D3")) + 
-      theme_minimal() + theme(axis.text.x=element_text(angle=45, hjust=1)) +
-      labs(title="Error Composition per Cell Type", y="Percentage (%)", fill="Error Class"))
-dev.off()
-
-cm_long <- pbmc@meta.data %>%
-  group_by(celltype_clean, Error_Type) %>%
-  tally() %>%
-  pivot_wider(names_from = Error_Type, values_from = n, values_fill = 0) %>%
-  pivot_longer(cols = any_of(c("TP", "FP", "TN", "FN")), names_to = "entry", values_to = "count") %>%
-  mutate(Truth = ifelse(entry %in% c("TP", "FN"), "GT = 1", "GT = 0"),
-         Pred  = ifelse(entry %in% c("TP", "FP"), "Pred = 1", "Pred = 0"))
-
-png(paste0(OUT_DIR, "12_Confusion_Matrices_CellTypes.png"), 1200, 800)
-print(ggplot(cm_long, aes(x = Pred, y = Truth, fill = count)) +
-  geom_tile() + geom_text(aes(label = count)) +
-  facet_wrap(~ celltype_clean) + scale_fill_viridis_c() +
-  theme_minimal() + labs(title = "Confusion Matrices per Cell Type"))
-dev.off()
-
-png(paste0(OUT_DIR, "13_Balanced_Accuracy.png"), 1000, 600)
-p13 <- ggplot(ct_data, aes(x = reorder(celltype_clean, Balanced_Accuracy), 
-                             y = Balanced_Accuracy)) + 
-  geom_col(fill="steelblue") + 
-  coord_flip() + 
-  theme_minimal() + 
-  labs(title="Balanced Accuracy per Cell Type", x="")
-print(p13)
-dev.off()
-
-png(paste0(OUT_DIR, "14_Accuracy_Dotplot.png"), 1000, 700)
-p14 <- ggplot(ct_data, aes(x = reorder(celltype_clean, Balanced_Accuracy), 
-                             y = Balanced_Accuracy, 
-                             size = n)) + 
-  geom_point(color="darkblue") + 
-  coord_flip() + 
-  theme_minimal() + 
-  labs(title="Balanced Accuracy (Size = Cell Count)")
-print(p14)
-dev.off()
-
-deltas <- seq(-1.0, 1.0, by = 0.05)
-sweep_res <- lapply(deltas, function(d) {
-  curr_tz <- THRESHOLD_Z + d
-  pred <- (pbmc$Z_Score > curr_tz) & (pbmc$Immune_Z > THRESHOLD_I)
-  
-  tp_s <- sum(pred & pbmc$GT_Response == 1, na.rm = TRUE)
-  fp_s <- sum(pred & pbmc$GT_Response == 0, na.rm = TRUE)
-  fn_s <- sum(!pred & pbmc$GT_Response == 1, na.rm = TRUE)
-  
-  p_s <- if((tp_s + fp_s) > 0) tp_s / (tp_s + fp_s) else 0
-  r_s <- if((tp_s + fn_s) > 0) tp_s / (tp_s + fn_s) else 0
-  f1_s <- if((p_s + r_s) > 0) 2 * (p_s * r_s) / (p_s + r_s) else 0
-  
-  data.frame(delta = d, Precision = p_s, Recall = r_s, F1 = f1_s)
-}) %>% bind_rows()
-
-png(paste0(OUT_DIR, "15_PR_Sweep.png"), 900, 700)
-p15 <- ggplot(sweep_res, aes(x = Recall, y = Precision)) + 
-  geom_path(color = "red", linewidth = 1) + 
-  geom_point(aes(alpha = (delta == 0)), size = 3) + 
-  theme_minimal() + 
-  labs(title = "Threshold Stability Sweep",
-       subtitle = "Red dot indicates the selected optimal threshold",
-       x = "Recall (Sensitivity)", y = "Precision") +
-  guides(alpha = "none")
-print(p15)
-dev.off()
-
-if(THRESH_MODE == "gmm_dist_dual" || THRESH_MODE == "null_dist_immune_dual"){
-  png(paste0(OUT_DIR, "18_2D_Scoring_Space.png"), 1000, 800)
-  print(ggplot(pbmc@meta.data, aes(x=Z_Score, y=Immune_Z, color=Error_Type)) +
-    geom_point(alpha=0.4, size=0.8) +
-    scale_color_manual(values=c("TP"="#228B22", "FP"="#FF4500", "FN"="#1E90FF", "TN"="#D3D3D3")) +
-    geom_vline(xintercept=THRESHOLD_Z, linetype="dashed", color="black") +
-    geom_hline(yintercept=THRESHOLD_I, linetype="dashed", color="black") +
-    theme_minimal() +
-    labs(title="2D Classification Space", 
-         subtitle="Vertical: Platelet-Threshold | Horizontal: Immune-Threshold",
-         x="Platelet Z-Score", y="Immune Z-Score", color="Status"))
-  dev.off()
-}
-
-message("Done! Alle Plots und Ergebnisse für ", DATASET_SHORT, " in: ", OUT_DIR)
+message("Done! Alle Plots und Ergebnisse für ", DATASET_SHORT, " (", EXTRACTED_MODE, ") in: ", OUT_DIR)

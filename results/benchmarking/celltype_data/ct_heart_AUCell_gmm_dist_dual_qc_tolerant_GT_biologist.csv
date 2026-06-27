@@ -1,0 +1,6 @@
+"celltype_clean","celltype.l3","TP","FP","FN","TN","Mean_Z","n","Accuracy","Balanced_Accuracy","Dataset","Method","Mode","Filter_Mode","GT_Source"
+"B cells","B cells",0,3,0,96,-0.14841641669744,99,0.96969696969697,0.484848479951025,"heart","AUCell","gmm_dist_dual","qc_tolerant","biologist"
+"DCs","DCs",0,1169,0,363,0.503255738941286,1687,0.215174866627149,0.118472584779065,"heart","AUCell","gmm_dist_dual","qc_tolerant","biologist"
+"NK cells","NK cells",0,0,0,34,-2.13111460515179,71,0.47887323943662,0.499999985294118,"heart","AUCell","gmm_dist_dual","qc_tolerant","biologist"
+"Macrophages","Macrophages",84,1292,90,1250,-0.0183256529964178,2716,0.491163475699558,0.48724870303868,"heart","AUCell","gmm_dist_dual","qc_tolerant","biologist"
+"Neutrophils","Neutrophils",12,580,32,883,-0.298265471425744,2123,0.421573245407442,0.438140803256413,"heart","AUCell","gmm_dist_dual","qc_tolerant","biologist"

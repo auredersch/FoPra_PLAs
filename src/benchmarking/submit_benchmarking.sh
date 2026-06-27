@@ -3,40 +3,44 @@
 #SBATCH --output=slurm_logs/benchmark_%A_%a.out
 #SBATCH --error=slurm_logs/benchmark_%A_%a.err
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
-#SBATCH --mem=80G
-#SBATCH --time=06:00:00
-#SBATCH --array=1-5
+#SBATCH --cpus-per-task=20        
+#SBATCH --mem=120G             
+#SBATCH --time=02:00:00            
+#SBATCH --array=1-5              
+#SBATCH --chdir=/nfs/home/students/a.dersch/FoPra_PLAs
 
 mkdir -p slurm_logs
 
-# --- DATASET CONFIGURATION ---
-DATASETS=(
-  "gated_heart_processed.rds"
-  "gated_sepsis_processed.rds"
-  "gated_vaccine_processed.rds"
-  "gated_ImmuneAging.rds"
-  "gated_our_dataset_processed.rds"
-)
+COHORTEN=("heart" "sepsis" "vaccine" "immune_aging" "impact")
 
-INDEX=$((SLURM_ARRAY_TASK_ID - 1))
-CURRENT_FILE=${DATASETS[$INDEX]}
+ZERO_INDEX=$((SLURM_ARRAY_TASK_ID - 1))
+COHORTE=${COHORTEN[$ZERO_INDEX]}
 
-# Zwinge Slurm, das R 4.4.2 vom Cluster zu laden (das mit dem funktionierenden Seurat!)
+MODUS="qc_tolerant"
+GT_SOURCE="gmm_dual"  
+
+CURRENT_FILE="${COHORTE}_${MODUS}_automated_gating.rds"
+
+# Environment Setup
 export PATH="/nfs/data/cluster/software/R/4.4.2/lib/R/bin:$PATH"
-
-# Wir zeigen R deinen neuen 4.4-Ordner. Den System-Ordner findet R 4.4.2 von alleine!
 export R_LIBS_USER="/cmnfs/home/students/a.dersch/R/x86_64-pc-linux-gnu-library/4.4"
 
 echo "======================================================"
-echo "Starte Task $SLURM_ARRAY_TASK_ID für $CURRENT_FILE mit R 4.4.2"
+echo "TEST LAUF - Slurm Task ID: $SLURM_ARRAY_TASK_ID"
+echo "Verarbeite Kohorte:        $COHORTE"
+echo "Nutze Datei:               $CURRENT_FILE"
+echo "Modus (Filter):            $MODUS"
+echo "Ground Truth Quelle:       $GT_SOURCE"
 echo "======================================================"
 
-# --- PIPELINE STARTEN ---
-Rscript Benchmarking_Master_v4.R \
+# --- PIPELINE AUSFÜHRUNG ---
+Rscript src/benchmarking/Benchmarking_Master_v4.R \
   "AUCell" \
   "MANNE_DN" \
   "MANNE_COVID19_COMBINED_COHORT_VS_HEALTHY_DONOR_PLATELETS_DN.v2025.1.Hs" \
-  TRUE \
+  FALSE \
   "gmm_dist_dual" \
-  "$CURRENT_FILE"
+  "$CURRENT_FILE" \
+  "$GT_SOURCE"
+
+echo "Task $SLURM_ARRAY_TASK_ID (Kohorte: $COHORTE) erfolgreich beendet."

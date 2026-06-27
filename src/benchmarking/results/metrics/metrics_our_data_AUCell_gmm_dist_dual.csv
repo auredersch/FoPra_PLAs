@@ -1,2 +1,0 @@
-"Dataset","Method","Signature","Ext","Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
-"our_data","AUCell","MANNE_DN",TRUE,"gmm_dist_dual",0.59464315873284,0.118622448979592,0.116541353383459,0.120779220779221,186,1410,1354,16353,0.441512319910323,3.88854219913483
