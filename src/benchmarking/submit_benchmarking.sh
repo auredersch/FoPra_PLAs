@@ -16,7 +16,7 @@ COHORTEN=("heart" "sepsis" "vaccine" "immune_aging" "impact")
 ZERO_INDEX=$((SLURM_ARRAY_TASK_ID - 1))
 COHORTE=${COHORTEN[$ZERO_INDEX]}
 
-MODUS="qc_tolerant"
+MODUS="raw"
 GT_SOURCE="gmm_dual"  
 
 CURRENT_FILE="${COHORTE}_${MODUS}_automated_gating.rds"

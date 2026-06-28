@@ -357,7 +357,7 @@ write.csv(data.frame(
     AUC = as.numeric(auc(roc_obj)), F1 = f1, Prec = prec, Rec = rec, TP = tp, FP = fp, FN = fn, TN = tn, 
     Threshold_Value = THRESHOLD_Z, Runtime_Min = runtime_min
 ),
-paste0("results/metrics/metrics_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), row.names = FALSE)
+paste0("results/benchmarking/metrics/metrics_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), row.names = FALSE)
 
 ct_data <- pbmc@meta.data %>% 
     group_by(celltype_clean, celltype.l3) %>% 
@@ -373,7 +373,7 @@ ct_data <- pbmc@meta.data %>%
     )
 
 write.csv(ct_data, 
-          paste0("results/celltype_data/ct_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), 
+          paste0("results/benchmarking/celltype_data/ct_", DATASET_SHORT, "_", METHOD_NAME, "_", THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"), 
           row.names = FALSE)
 
 #CHOSEN_REDUCTION <- "GEX_umap" 

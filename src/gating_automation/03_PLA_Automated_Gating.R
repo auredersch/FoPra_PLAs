@@ -105,7 +105,6 @@ if (FILTER_MODE != "raw") {
     qc <- read.csv(qc_table_file)
     
     if (FILTER_MODE == "qc_strict") {
-      # Nur die absoluten Top-Paare zulassen (Alles andere fliegt raus)
       trusted_pairs <- qc %>% 
         filter(final_pair_status %in% c("trusted", "trusted_but_extreme_PLA")) %>%
         select(sample_id, celltype_id)
@@ -125,7 +124,41 @@ if (FILTER_MODE != "raw") {
 OUT_DIR <- file.path(BASE_PLOT, dataset_type, FILTER_MODE, "/")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-# --- GATING SCHLEIFE ---
+get_gmm_threshold <- function(gmm_fit) {
+  means <- gmm_fit$parameters$mean
+  vars  <- gmm_fit$parameters$variance$sigmasq
+  pros  <- gmm_fit$parameters$pro
+  
+  neg_idx <- which.min(means)
+  pos_idx <- which.max(means)
+  
+  # Wenn means identisch oder extrem nah aneinander ist
+  if (abs(means[neg_idx] - means[pos_idx]) < 1e-4) {
+    return(means[neg_idx])
+  }
+  
+  #Kreuzungspunkt zwischen means
+  search_grid <- seq(means[neg_idx], means[pos_idx], length.out = 1000)
+  
+  var_neg <- if(length(vars) >= neg_idx) vars[neg_idx] else vars[1]
+  var_pos <- if(length(vars) >= pos_idx) vars[pos_idx] else vars[1]
+  
+  d_neg <- pros[neg_idx] * dnorm(search_grid, means[neg_idx], sqrt(var_neg))
+  d_pos <- pros[pos_idx] * dnorm(search_grid, means[pos_idx], sqrt(var_pos))
+  
+  cross_idx <- which.min(abs(d_neg - d_pos))
+  thresh <- search_grid[cross_idx]
+  
+  # Falls thresh Länge 0 oder NA ist
+  if (length(thresh) == 0 || is.na(thresh)) {
+    # arithmetischer Mittelpunkt 
+    thresh <- (means[neg_idx] + means[pos_idx]) / 2
+  }
+  
+  return(thresh)
+}
+
+# Gating
 for (lineage_name in all_lineages) {
 
   csv_lineage_name <- case_when(
@@ -166,8 +199,9 @@ for (lineage_name in all_lineages) {
   
   thresh_cd41 <- NULL
   if (!is.null(gmm_cd41)) {
-    neg_cluster_cd41 <- which.min(gmm_cd41$parameters$mean)
-    thresh_cd41 <- max(cd41_values[gmm_cd41$classification == neg_cluster_cd41])
+    #neg_cluster_cd41 <- which.min(gmm_cd41$parameters$mean)
+    #thresh_cd41 <- max(cd41_values[gmm_cd41$classification == neg_cluster_cd41])
+    thresh_cd41 <- get_gmm_threshold(gmm_cd41)
     seurat_obj$automative_gating_single[Zellen_im_Zelltyp] <- ifelse(cd41_values > thresh_cd41, "PLA", "platelet-free")
   }
   
@@ -177,9 +211,10 @@ for (lineage_name in all_lineages) {
     gmm_second <- tryCatch(Mclust(second_values, G = 2), error = function(e) NULL)
     
     if (!is.null(gmm_second)) {
-      neg_cluster_second <- which.min(gmm_second$parameters$mean)
-      thresh_second <- max(second_values[gmm_second$classification == neg_cluster_second])
-      
+      #neg_cluster_second <- which.min(gmm_second$parameters$mean)
+      #thresh_second <- max(second_values[gmm_second$classification == neg_cluster_second])
+      thresh_second <- get_gmm_threshold(gmm_second)
+
       seurat_obj$automative_gating_double[Zellen_im_Zelltyp] <- ifelse(
         (cd41_values > thresh_cd41) & (second_values > thresh_second), "PLA", "platelet-free"
       )
@@ -189,12 +224,11 @@ for (lineage_name in all_lineages) {
   }
 }
 
-# --- RDS SPEICHERN ---
 neuer_name <- paste0(dataset_type, "_", FILTER_MODE, "_automated_gating.rds")
 saveRDS(seurat_obj, file = file.path(OUTPUT_DIR, neuer_name))
 print(paste("-> RDS erfolgreich gespeichert unter:", file.path(OUTPUT_DIR, neuer_name)))
 
-# --- PLOTS SCHREIBEN ---
+# Plots
 print("-> Generiere Validierungs-Plots...")
 plot_data <- seurat_obj@meta.data %>% filter(lineage %in% all_lineages)
 
@@ -217,10 +251,27 @@ ggsave(paste0(OUT_DIR, "barplot_fraction_biologist.png"), plot = p1, width = 6, 
 ggsave(paste0(OUT_DIR, "barplot_fraction_gmm_1d.png"), plot = p2, width = 6, height = 5)
 ggsave(paste0(OUT_DIR, "barplot_fraction_gmm_2d.png"), plot = p3, width = 6, height = 5)
 
+comp_p1 <- p1 + theme(axis.title.x = element_blank()) + scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF"), guide = "none")
+comp_p2 <- p2 + theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF"), guide = "none")
+comp_p3 <- p3 + theme(axis.title.y = element_blank())
+
+composition_plot <- (comp_p1 | comp_p2 | comp_p3) + 
+  plot_annotation(
+    title = paste("PLA Gating Composition Comparison -", toupper(dataset_type)),
+    subtitle = paste("Filter Mode:", toupper(FILTER_MODE), "| Probabilistic Density Intersection GMM"),
+    theme = theme(plot.title = element_text(size = 16, face = "bold"), plot.subtitle = element_text(size = 12))
+  )
+ggsave(
+  filename = paste0(OUT_DIR, "supervisor_combined_composition_plot.png"), 
+  plot = composition_plot, 
+  width = 16, 
+  height = 6, 
+  dpi = 300
+)  
+
 reduction <- if (dataset_type == "immune_aging") "GEX_umap_mrvi" else "umap_totalVI"
 
 if (reduction %in% names(seurat_obj@reductions)) {
-  # Key-Korrektur umgehen falls nötig
   old_assay <- DefaultAssay(seurat_obj)
   if ("RNA" %in% Assays(seurat_obj)) DefaultAssay(seurat_obj) <- "RNA"
   
