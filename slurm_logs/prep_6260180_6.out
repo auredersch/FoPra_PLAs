@@ -1,0 +1,20 @@
+SLURM job ID: 6260188
+SLURM array task ID: 6
+Dataset: gated_vaccine_processed
+Dataset type: vaccine
+Mode: withHealthy
+Input RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_vaccine_processed.rds
+Output RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_withHealthy.rds
+
+diseased  healthy 
+   94960    43408 
+             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    3700585   197.7    6519311   348.2    5032898   268.8
+Vcells 1804067457 13764.0 2509357846 19144.9 1841162872 14047.0
+             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    3700810   197.7    6519311   348.2    5032898   268.8
+Vcells 1804067992 13764.0 3011309415 22974.5 1841162872 14047.0
+
+diseased  healthy 
+   94960    43408 
+Finished preparing: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_withHealthy.rds

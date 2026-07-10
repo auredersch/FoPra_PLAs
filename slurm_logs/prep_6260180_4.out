@@ -1,0 +1,20 @@
+SLURM job ID: 6260186
+SLURM array task ID: 4
+Dataset: gated_sepsis_processed
+Dataset type: sepsis
+Mode: withHealthy
+Input RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_sepsis_processed.rds
+Output RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_sepsis_processed_withHealthy.rds
+
+diseased  healthy 
+  261702    23341 
+             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    3859689   206.2    6519234   348.2    5032828   268.8
+Vcells 3200067992 24414.6 4374701560 33376.4 3275228841 24988.1
+             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    3859914   206.2    6519234   348.2    5032828   268.8
+Vcells 3200068527 24414.6 5249721872 40052.2 3275228841 24988.1
+
+diseased  healthy 
+  261702    23341 
+Finished preparing: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_sepsis_processed_withHealthy.rds

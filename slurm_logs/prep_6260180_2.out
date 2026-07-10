@@ -1,0 +1,20 @@
+SLURM job ID: 6260184
+SLURM array task ID: 2
+Dataset: gated_ImmuneAging
+Dataset type: immune_aging
+Mode: withHealthy
+Input RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_ImmuneAging.rds
+Output RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_withHealthy.rds
+
+healthy 
+  76611 
+            used   (Mb) gc trigger   (Mb)  max used   (Mb)
+Ncells   3725297  199.0    6519234  348.2   5032828  268.8
+Vcells 576726084 4400.1  718184280 5479.4 594103079 4532.7
+            used   (Mb) gc trigger   (Mb)  max used   (Mb)
+Ncells   3725522  199.0    6519234  348.2   5032828  268.8
+Vcells 576726619 4400.1  861901136 6575.8 594103079 4532.7
+
+healthy 
+  76611 
+Finished preparing: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_withHealthy.rds

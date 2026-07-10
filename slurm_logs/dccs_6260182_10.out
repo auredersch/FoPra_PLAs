@@ -1,0 +1,8 @@
+SLURM job ID: 6260203
+SLURM array task ID: 10
+Dataset: gated_ImmuneAging
+Mode: withHealthy
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_withHealthy.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
