@@ -1,16 +1,20 @@
 library(Seurat)
 
 dirs_to_update <- c(
-  #"/nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets",
-  "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets"
+  "/nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets"
+  #"/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets"
 )
 
+# files <- c(
+#   "gated_ImmuneAging.rds",
+#   "gated_heart_processed.rds",
+#   "gated_sepsis_processed.rds",
+#   "gated_vaccine_processed.rds",
+#   "gated_our_dataset_processed.rds"
+# )
+
 files <- c(
-  "gated_ImmuneAging.rds",
-  "gated_heart_processed.rds",
-  "gated_sepsis_processed.rds",
-  "gated_vaccine_processed.rds",
-  "gated_our_dataset_processed.rds"
+  "gated_skin_processed.rds"
 )
 
 for (data_dir in dirs_to_update) {

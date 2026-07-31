@@ -41,10 +41,13 @@ base_output_dir <- args[[2]]
 
 dataset_name <- tools::file_path_sans_ext(basename(input_file))
 
-dataset_mode <- stringr::str_extract(dataset_name, "(withHealthy|noHealthy)$")
+dataset_mode <- stringr::str_extract(
+  dataset_name,
+  "(all|diseasedOnly|healthyOnly)$"
+)
 
 dataset_clean <- dataset_name %>%
-  stringr::str_remove("_(withHealthy|noHealthy)$")
+  stringr::str_remove("_(all|diseasedOnly|healthyOnly)$")
 
 if (is.na(dataset_mode)) {
   dataset_mode <- "unknownMode"
@@ -94,6 +97,10 @@ save_table <- function(x, filename) {
 # ============================================================
 
 seurat_obj <- readRDS(input_file)
+seurat_obj <- subset(
+  seurat_obj,
+  subset = !is.na(lineage) & !is.na(pla_status) & !is.na(sample)
+)
 DefaultAssay(seurat_obj)
 
 sample_col <- "sample"
@@ -103,10 +110,26 @@ celltype_full <- "celltype_full"
 condition_col <- "pla_status"
 lineage_col <- "lineage"
 
-seurat_obj <- subset(
-  seurat_obj,
-  subset = !is.na(lineage) & !is.na(pla_status) & !is.na(sample)
+required_conditions <- c("PLA", "platelet-free")
+available_conditions <- unique(as.character(seurat_obj$pla_status))
+
+missing_conditions <- setdiff(
+  required_conditions,
+  available_conditions
 )
+
+message(
+  "Available pla_status values: ",
+  paste(sort(available_conditions), collapse = ", ")
+)
+
+if (length(missing_conditions) > 0) {
+  stop(
+    "Cannot perform PLA versus platelet-free comparison. ",
+    "Missing condition(s): ",
+    paste(missing_conditions, collapse = ", ")
+  )
+}
 
 seurat_obj$sample_condition <- paste(
   seurat_obj[[sample_col]][, 1],

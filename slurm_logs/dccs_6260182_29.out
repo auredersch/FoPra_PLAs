@@ -1,8 +1,0 @@
-SLURM job ID: 6260229
-SLURM array task ID: 29
-Dataset: gated_vaccine_processed
-Mode: noHealthy
-Method: multinichetr
-Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_noHealthy.rds
-Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/multinichetr.R
-Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/multinichetr

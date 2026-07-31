@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=prep_dccs_inputs
-#SBATCH --array=0-9
+#SBATCH --array=0-17
 #SBATCH --output=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/prep_%A_%a.out
 #SBATCH --error=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/prep_%A_%a.err
 #SBATCH --time=02:00:00
@@ -21,19 +21,24 @@ LOG_DIR="${RESULTS_DIR}/slurm_logs"
 R_BIN="/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript"
 PREP_SCRIPT="${SCRIPT_DIR}/prepare_cohort_rds.R"
 
-mkdir -p "${RESULTS_DIR}" "${PREP_DIR}" "${LOG_DIR}"
+mkdir -p \
+  "${RESULTS_DIR}" \
+  "${PREP_DIR}" \
+  "${LOG_DIR}"
 
-DATASETS=(
+DATASETS=( # slurm array to 0-17
   "${DATA_DIR}/gated_heart_processed.rds|heart"
   "${DATA_DIR}/gated_ImmuneAging.rds|immune_aging"
   "${DATA_DIR}/gated_sepsis_processed.rds|sepsis"
   "${DATA_DIR}/gated_vaccine_processed.rds|vaccine"
   "${DATA_DIR}/gated_our_dataset_processed.rds|our_data"
+  "${DATA_DIR}/gated_skin_processed.rds|skin"
 )
 
 MODES=(
-  "withHealthy"
-  "noHealthy"
+  "healthyOnly"
+  "diseasedOnly"
+  "all"
 )
 
 N_DATASETS=${#DATASETS[@]}
@@ -61,6 +66,8 @@ OUTPUT_RDS="${PREP_DIR}/${DATASET_BASE}_${MODE}.rds"
 
 echo "SLURM job ID: ${SLURM_JOB_ID}"
 echo "SLURM array task ID: ${SLURM_ARRAY_TASK_ID}"
+echo "Dataset index: ${DATASET_INDEX}"
+echo "Mode index: ${MODE_INDEX}"
 echo "Dataset: ${DATASET_BASE}"
 echo "Dataset type: ${DATASET_TYPE}"
 echo "Mode: ${MODE}"
@@ -74,6 +81,11 @@ fi
 
 if [[ ! -f "${PREP_SCRIPT}" ]]; then
   echo "Missing preparation script: ${PREP_SCRIPT}"
+  exit 1
+fi
+
+if [[ ! -x "${R_BIN}" ]]; then
+  echo "Rscript is missing or not executable: ${R_BIN}"
   exit 1
 fi
 

@@ -1,0 +1,48 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: Sun Jul 19 00:40:13 CEST 2026
+Host: alfred
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333514
+SLURM array task ID: 29
+Dataset index: 4
+Mode index: 2
+Method index: 1
+Dataset: gated_our_dataset_processed
+Mode: healthyOnly
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_healthyOnly.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 14K Jul 19 00:02 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 1.2G Jul 18 23:51 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_healthyOnly.rds
+Checking output directory:
+drwxrwx--- 24 i.kaciran daisybio 4096 Jul 19 00:38 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_healthyOnly.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+============================================================
+[1] "RNA"
+
+          PLA platelet-free 
+          271         10781 
+               
+                B cells CD4 T cells CD8 T cells  DCs NK cells Unassigned
+  PLA                 7          57          28    0        7          0
+  platelet-free     168         799         461   43      203       5381
+               
+                Monocytes Neutrophils
+  PLA                 163           9
+  platelet-free       645        3081
+============================================================
+R analysis exit code: 0
+Finished at: Sun Jul 19 00:41:36 CEST 2026
+============================================================
+Finished scDiffCom on gated_our_dataset_processed_healthyOnly

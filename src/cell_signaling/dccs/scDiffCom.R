@@ -38,10 +38,13 @@ base_output_dir <- args[[2]]
 
 dataset_name <- tools::file_path_sans_ext(basename(input_file))
 
-dataset_mode <- stringr::str_extract(dataset_name, "(withHealthy|noHealthy)$")
+dataset_mode <- stringr::str_extract(
+  dataset_name,
+  "(all|diseasedOnly|healthyOnly)$"
+)
 
 dataset_clean <- dataset_name %>%
-  stringr::str_remove("_(withHealthy|noHealthy)$")
+  stringr::str_remove("_(all|diseasedOnly|healthyOnly)$")
 
 if (is.na(dataset_mode)) {
   dataset_mode <- "unknownMode"
@@ -80,6 +83,10 @@ save_plot <- function(plot, filename, width = 8, height = 6, dpi = 300) {
 }
 
 seurat_obj <- readRDS(input_file)
+seurat_obj <- subset(
+  seurat_obj,
+  subset = !is.na(lineage) & !is.na(pla_status)
+)
 DefaultAssay(seurat_obj)
 
 sample_col    <- "sample"       # technical / sample-level replicate
@@ -91,6 +98,27 @@ lineage_col   <- "lineage"
 
 table(seurat_obj$pla_status, useNA = "ifany")
 table(seurat_obj$pla_status, seurat_obj$lineage)
+
+required_conditions <- c("PLA", "platelet-free")
+available_conditions <- unique(as.character(seurat_obj$pla_status))
+
+missing_conditions <- setdiff(
+  required_conditions,
+  available_conditions
+)
+
+message(
+  "Available pla_status values: ",
+  paste(sort(available_conditions), collapse = ", ")
+)
+
+if (length(missing_conditions) > 0) {
+  stop(
+    "Cannot perform PLA versus platelet-free comparison. ",
+    "Missing condition(s): ",
+    paste(missing_conditions, collapse = ", ")
+  )
+}
 
 # run default analyis
 scdiffcom_object <- run_interaction_analysis(
@@ -125,40 +153,40 @@ ORA_results <- GetTableORA(
   simplified = TRUE
 )
 
-saveRDS(
-  ORA_results,
-  file.path(out_dir, "scdiffcom_ORA_results.rds")
-)
-
-if (is.data.frame(ORA_results)) {
-  write.csv(
-    ORA_results,
-    file.path(table_dir, "scdiffcom_ORA_results.csv"),
-    row.names = FALSE
-  )
-} else if (is.list(ORA_results)) {
-  for (nm in names(ORA_results)) {
-    if (is.data.frame(ORA_results[[nm]])) {
-      write.csv(
-        ORA_results[[nm]],
-        file.path(table_dir, paste0("scdiffcom_ORA_", nm, ".csv")),
-        row.names = FALSE
-      )
-    }
-  }
-}
-
 write.csv(
   CCI_detected,
   file.path(table_dir, "scdiffcom_CCI_detected.csv"),
   row.names = FALSE
 )
 
-write.csv(
+saveRDS(
   ORA_results,
-  file.path(table_dir, "scdiffcom_ORA_results.csv"),
-  row.names = FALSE
+  file.path(out_dir, "scdiffcom_ORA_results.rds")
 )
+
+if (is.data.frame(ORA_results)) {
+
+  write.csv(
+    ORA_results,
+    file.path(table_dir, "scdiffcom_ORA_results.csv"),
+    row.names = FALSE
+  )
+
+} else if (is.list(ORA_results)) {
+
+  for (nm in names(ORA_results)) {
+    if (is.data.frame(ORA_results[[nm]])) {
+      write.csv(
+        ORA_results[[nm]],
+        file.path(
+          table_dir,
+          paste0("scdiffcom_ORA_", nm, ".csv")
+        ),
+        row.names = FALSE
+      )
+    }
+  }
+}
 
 cci_regulation_counts <- CCI_detected %>%
   dplyr::count(REGULATION)

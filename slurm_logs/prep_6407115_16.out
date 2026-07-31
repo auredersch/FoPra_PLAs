@@ -1,0 +1,23 @@
+SLURM job ID: 6407149
+SLURM array task ID: 16
+Dataset index: 5
+Mode index: 1
+Dataset: gated_skin_processed
+Dataset type: skin
+Mode: diseasedOnly
+Input RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_skin_processed.rds
+Output RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_skin_processed_diseasedOnly.rds
+         cohort
+Status    diseased healthy
+  AXI        14297       0
+  Healthy        0   46412
+  PSA        26188       0
+  PSO        42035       0
+  PSX        10527       0
+
+diseased  healthy 
+   93047    46412 
+
+diseased 
+   93047 
+Finished preparing: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_skin_processed_diseasedOnly.rds

@@ -1,0 +1,27 @@
+============================================================
+PLA STATUS UPDATE
+============================================================
+Date: Do 30. Jul 10:19:31 CEST 2026
+Host: elmo.exbio.wzw.tum.de
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6403545
+R binary: /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+R script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/dataset/adapt_dataset.R
+Log directory: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+R version:
+Rscript (R) version 4.3.3 (2024-02-29)
+R script:
+-rw-rw---- 1 i.kaciran daisybio 1,9K Jul 30 10:15 /nfs/home/students/i.kaciran/FoPra_PLAs/src/dataset/adapt_dataset.R
+Starting pla_status update...
+============================================================
+
+ gated_skin_processed.rds 
+
+          PLA platelet-free 
+         2332        137127 
+============================================================
+Exit code: 0
+Finished at: Do 30. Jul 10:28:17 CEST 2026
+============================================================
+pla_status update completed successfully.

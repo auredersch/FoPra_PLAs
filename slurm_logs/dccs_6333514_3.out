@@ -1,0 +1,48 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: Sun Jul 19 00:07:08 CEST 2026
+Host: alfred
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333518
+SLURM array task ID: 3
+Dataset index: 0
+Mode index: 1
+Method index: 1
+Dataset: gated_heart_processed
+Mode: diseasedOnly
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_heart_processed_diseasedOnly.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 14K Jul 19 00:02 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 1019M Jul 18 23:50 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_heart_processed_diseasedOnly.rds
+Checking output directory:
+drwxrwx--- 12 i.kaciran daisybio 4096 Jul  4 03:10 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_heart_processed_diseasedOnly.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+============================================================
+[1] "RNA"
+
+          PLA platelet-free 
+          219          9592 
+               
+                B cells  DCs NK cells Unassigned CD4 T cells Macrophages
+  PLA                 0    0        0          0           2         173
+  platelet-free     143 1641      475       3297          36        2137
+               
+                Neutrophils CD8 T cells
+  PLA                    44           0
+  platelet-free        1850          13
+============================================================
+R analysis exit code: 0
+Finished at: Sun Jul 19 00:08:50 CEST 2026
+============================================================
+Finished scDiffCom on gated_heart_processed_diseasedOnly

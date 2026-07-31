@@ -1,0 +1,48 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: Sun Jul 19 00:12:51 CEST 2026
+Host: alfred
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333531
+SLURM array task ID: 15
+Dataset index: 2
+Mode index: 1
+Method index: 1
+Dataset: gated_sepsis_processed
+Mode: diseasedOnly
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_sepsis_processed_diseasedOnly.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 14K Jul 19 00:02 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 22G Jul 18 23:54 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_sepsis_processed_diseasedOnly.rds
+Checking output directory:
+drwxrwx--- 18 i.kaciran daisybio 4096 Jul 19 00:10 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_sepsis_processed_diseasedOnly.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+============================================================
+[1] "RNA"
+
+          PLA platelet-free 
+        34878        226579 
+               
+                   DCs NK cells Unassigned neutrophils CD8 T cells B cells
+  PLA             1949     2029          0           0        6096     438
+  platelet-free   3157    28734     113031        4124       16558   18607
+               
+                CD4 T cells Monocytes
+  PLA                  4929     19437
+  platelet-free       38954      3414
+============================================================
+R analysis exit code: 0
+Finished at: Sun Jul 19 00:22:26 CEST 2026
+============================================================
+Finished scDiffCom on gated_sepsis_processed_diseasedOnly

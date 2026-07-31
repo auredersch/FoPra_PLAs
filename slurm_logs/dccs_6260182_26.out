@@ -1,8 +1,0 @@
-SLURM job ID: 6260225
-SLURM array task ID: 26
-Dataset: gated_vaccine_processed
-Mode: withHealthy
-Method: scDiffCom
-Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_withHealthy.rds
-Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
-Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom

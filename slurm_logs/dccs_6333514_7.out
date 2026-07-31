@@ -1,0 +1,48 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: So 19. Jul 00:09:25 CEST 2026
+Host: elmo.exbio.wzw.tum.de
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333522
+SLURM array task ID: 7
+Dataset index: 1
+Mode index: 0
+Method index: 1
+Dataset: gated_ImmuneAging
+Mode: all
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_all.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 14K Jul 19 00:02 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 4,4G Jul 18 23:51 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_all.rds
+Checking output directory:
+drwxrwx--- 15 i.kaciran daisybio 4096 Jul 19 00:09 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_all.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+============================================================
+[1] "RNA"
+
+          PLA platelet-free 
+         1895         74216 
+               
+                B cells CD4 T cells CD8 T cells   DCs NK cells Unassigned
+  PLA               636         359         161     0       78          0
+  platelet-free    6795       17733        6171   446     6160      21271
+               
+                Monocytes  cDC1  cDC2 Neutrophils
+  PLA                 588     0     0          73
+  platelet-free     11426     1     7        4206
+============================================================
+R analysis exit code: 0
+Finished at: So 19. Jul 00:12:14 CEST 2026
+============================================================
+Finished scDiffCom on gated_ImmuneAging_all

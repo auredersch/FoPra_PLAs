@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=dccs_batch
-#SBATCH --array=0-39
+#SBATCH --array=0-29%4
 #SBATCH --output=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/dccs_%A_%a.out
 #SBATCH --error=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/dccs_%A_%a.err
 #SBATCH --time=12:00:00
@@ -30,15 +30,16 @@ DATASETS=(
 )
 
 MODES=(
-  "withHealthy"
-  "noHealthy"
+  "all"
+  "diseasedOnly"
+  "healthyOnly"
 )
 
 METHODS=(
-  "liana_plus|${SCRIPT_DIR}/liana_plus.R"
+  #"liana_plus|${SCRIPT_DIR}/liana_plus.R"
   "multinichetr|${SCRIPT_DIR}/multinichetr.R"
   "scDiffCom|${SCRIPT_DIR}/scDiffCom.R"
-  "split_liana|${SCRIPT_DIR}/split_liana.R"
+  #"split_liana|${SCRIPT_DIR}/split_liana.R"
 )
 
 N_DATASETS=${#DATASETS[@]}

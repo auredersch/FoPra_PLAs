@@ -1,0 +1,21 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: So 19. Jul 00:09:27 CEST 2026
+Host: elmo.exbio.wzw.tum.de
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333524
+SLURM array task ID: 9
+Dataset index: 1
+Mode index: 1
+Method index: 1
+Dataset: gated_ImmuneAging
+Mode: diseasedOnly
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_diseasedOnly.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+ERROR: Missing prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_ImmuneAging_diseasedOnly.rds
+Run prepare_cohort_inputs_slurm.sh first.

@@ -1,0 +1,65 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: So 19. Jul 00:37:53 CEST 2026
+Host: elmo.exbio.wzw.tum.de
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333553
+SLURM array task ID: 24
+Dataset index: 4
+Mode index: 0
+Method index: 0
+Dataset: gated_our_dataset_processed
+Mode: all
+Method: multinichetr
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_all.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/multinichetr.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/multinichetr
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 29K Jul 19 00:03 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/multinichetr.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 3,1G Jul 18 23:51 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_all.rds
+Checking output directory:
+drwxrwx--- 23 i.kaciran daisybio 4096 Jul 19 00:36 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/multinichetr
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/multinichetr.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_all.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/multinichetr
+============================================================
+[1] "RNA"
+15: (function () 
+    {
+        message("R error occurred. Traceback:")
+        traceback(2)
+        quit(save = "no", status = 1)
+    })()
+14: stop(fallback)
+13: signal_abort(cnd, .file)
+12: abort(message = paste(paste(sQuote(x = setdiff(x = i, y = meta.cols)), 
+        collapse = ", "), "not found in this Seurat object\n", e$body), 
+        call = rlang::caller_env(n = 4L))
+11: value[[3L]](cond)
+10: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+9: tryCatchList(expr, classes, parentenv, handlers)
+8: tryCatch(expr = arg_match(arg = i, values = meta.cols, multiple = TRUE), 
+       error = function(e) {
+           abort(message = paste(paste(sQuote(x = setdiff(x = i, 
+               y = meta.cols)), collapse = ", "), "not found in this Seurat object\n", 
+               e$body), call = rlang::caller_env(n = 4L))
+       })
+7: `[[.Seurat`(seurat_obj, sample_col)
+6: seurat_obj[[sample_col]]
+5: eval(quote(list(...)), env)
+4: eval(quote(list(...)), env)
+3: eval(quote(list(...)), env)
+2: standardGeneric("paste")
+1: paste(seurat_obj[[sample_col]][, 1], seurat_obj[[condition_col]][, 
+       1], sep = "_")
+============================================================
+R analysis exit code: 1
+Finished at: So 19. Jul 00:38:32 CEST 2026
+============================================================
+ERROR: R analysis failed for multinichetr on gated_our_dataset_processed_all

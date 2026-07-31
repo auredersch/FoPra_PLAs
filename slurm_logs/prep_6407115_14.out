@@ -1,0 +1,16 @@
+SLURM job ID: 6407141
+SLURM array task ID: 14
+Dataset index: 4
+Mode index: 2
+Dataset: gated_our_dataset_processed
+Dataset type: our_data
+Mode: all
+Input RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/data/datasets/gated_our_dataset_processed.rds
+Output RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_all.rds
+
+diseased  healthy 
+   27904    18658 
+
+diseased  healthy 
+   27904    18658 
+Finished preparing: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_our_dataset_processed_all.rds

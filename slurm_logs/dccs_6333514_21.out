@@ -1,0 +1,48 @@
+============================================================
+DCCS ARRAY TASK
+============================================================
+Date: So 19. Jul 00:32:57 CEST 2026
+Host: ernie.exbio.wzw.tum.de
+Working directory: /nfs/home/students/i.kaciran/FoPra_PLAs
+SLURM job ID: 6333546
+SLURM array task ID: 21
+Dataset index: 3
+Mode index: 1
+Method index: 1
+Dataset: gated_vaccine_processed
+Mode: diseasedOnly
+Method: scDiffCom
+Prepared RDS: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_diseasedOnly.rds
+Script: /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Output dir: /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Log dir: /nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs
+============================================================
+Checking R binary:
+-rwxrwxr-x 1 i.kaciran daisybio 17K Jun  4 18:01 /nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript
+Rscript (R) version 4.3.3 (2024-02-29)
+Checking R script:
+-rw-rw---- 1 i.kaciran daisybio 14K Jul 19 00:02 /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R
+Checking prepared RDS:
+-rw-rw---- 1 i.kaciran daisybio 9,2G Jul 18 23:52 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_diseasedOnly.rds
+Checking output directory:
+drwxrwx--- 21 i.kaciran daisybio 4096 Jul 19 00:22 /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+Starting R analysis command:
+/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript /nfs/home/students/i.kaciran/FoPra_PLAs/src/cell_signaling/dccs/scDiffCom.R /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/prepared_inputs/gated_vaccine_processed_diseasedOnly.rds /nfs/home/students/i.kaciran/FoPra_PLAs/results/differential_ccs/scDiffCom
+============================================================
+[1] "RNA"
+
+          PLA platelet-free 
+        25644         69085 
+               
+                B cells CD4 T cells CD8 T cells   DCs Monocytes Neutrophils
+  PLA                69          95         105  2066     22485          77
+  platelet-free    7213       27338       15050  1556       355          53
+               
+                NK cells Unassigned
+  PLA                747          0
+  platelet-free    11860       5660
+============================================================
+R analysis exit code: 0
+Finished at: So 19. Jul 00:37:37 CEST 2026
+============================================================
+Finished scDiffCom on gated_vaccine_processed_diseasedOnly
