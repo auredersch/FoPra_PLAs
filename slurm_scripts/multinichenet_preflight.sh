@@ -1,25 +1,29 @@
 #!/bin/bash
 
-#SBATCH --job-name=dccs_batch
-#SBATCH --array=0-35%4
-#SBATCH --output=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/dccs_%A_%a.out
-#SBATCH --error=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/dccs_%A_%a.err
-#SBATCH --time=12:00:00
-#SBATCH --mem=128G
-#SBATCH --cpus-per-task=4
+#SBATCH --job-name=multiniche_preflight
+#SBATCH --array=0-17%4
+#SBATCH --output=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/multiniche_preflight_%A_%a.out
+#SBATCH --error=/nfs/home/students/i.kaciran/FoPra_PLAs/slurm_logs/multiniche_preflight_%A_%a.err
+#SBATCH --time=01:00:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=2
 
 set -euo pipefail
 
 PROJECT_DIR="/nfs/home/students/i.kaciran/FoPra_PLAs"
-SCRIPT_DIR="${PROJECT_DIR}/src/cell_signaling/dccs"
 
+SCRIPT_DIR="${PROJECT_DIR}/src/cell_signaling/dccs"
 RESULTS_DIR="${PROJECT_DIR}/results/differential_ccs"
 PREP_DIR="${RESULTS_DIR}/prepared_inputs"
+PREFLIGHT_OUT_DIR="${RESULTS_DIR}/multinichetr_preflight"
 LOG_DIR="${PROJECT_DIR}/slurm_logs"
 
 R_BIN="/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript"
+SCRIPT="${SCRIPT_DIR}/multinichenet_preflight.R"
 
-mkdir -p "${RESULTS_DIR}" "${LOG_DIR}"
+mkdir -p \
+  "${PREFLIGHT_OUT_DIR}" \
+  "${LOG_DIR}"
 
 DATASETS=(
   "gated_heart_processed"
@@ -36,38 +40,26 @@ MODES=(
   "healthyOnly"
 )
 
-METHODS=(
-  #"liana_plus|${SCRIPT_DIR}/liana_plus.R"
-  "multinichetr|${SCRIPT_DIR}/multinichetr.R"
-  "scDiffCom|${SCRIPT_DIR}/scDiffCom.R"
-  #"split_liana|${SCRIPT_DIR}/split_liana.R"
-)
-
 N_DATASETS=${#DATASETS[@]}
 N_MODES=${#MODES[@]}
-N_METHODS=${#METHODS[@]}
 
-TOTAL_TASKS=$((N_DATASETS * N_MODES * N_METHODS))
+TOTAL_TASKS=$((N_DATASETS * N_MODES))
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-METHOD_INDEX=$((TASK_ID % N_METHODS))
-MODE_INDEX=$(((TASK_ID / N_METHODS) % N_MODES))
-DATASET_INDEX=$((TASK_ID / (N_METHODS * N_MODES)))
+MODE_INDEX=$((TASK_ID % N_MODES))
+DATASET_INDEX=$((TASK_ID / N_MODES))
 
 DATASET_BASE="${DATASETS[$DATASET_INDEX]}"
 MODE="${MODES[$MODE_INDEX]}"
-METHOD_ENTRY="${METHODS[$METHOD_INDEX]}"
+DATASET_NAME="${DATASET_BASE}_${MODE}"
 
-METHOD="${METHOD_ENTRY%%|*}"
-SCRIPT="${METHOD_ENTRY##*|}"
+PREPARED_RDS="${PREP_DIR}/${DATASET_NAME}.rds"
+DATASET_OUT_DIR="${PREFLIGHT_OUT_DIR}/${DATASET_NAME}"
 
-PREPARED_RDS="${PREP_DIR}/${DATASET_BASE}_${MODE}.rds"
-METHOD_OUT_DIR="${RESULTS_DIR}/${METHOD}"
-
-mkdir -p "${METHOD_OUT_DIR}"
+mkdir -p "${DATASET_OUT_DIR}"
 
 echo "============================================================"
-echo "DCCS ARRAY TASK"
+echo "MULTINICHENET PREFLIGHT ARRAY TASK"
 echo "============================================================"
 echo "Date: $(date)"
 echo "Host: $(hostname)"
@@ -76,14 +68,12 @@ echo "SLURM job ID: ${SLURM_JOB_ID}"
 echo "SLURM array task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Dataset index: ${DATASET_INDEX}"
 echo "Mode index: ${MODE_INDEX}"
-echo "Method index: ${METHOD_INDEX}"
 echo "Dataset: ${DATASET_BASE}"
 echo "Mode: ${MODE}"
-echo "Method: ${METHOD}"
+echo "Dataset name: ${DATASET_NAME}"
 echo "Prepared RDS: ${PREPARED_RDS}"
 echo "Script: ${SCRIPT}"
-echo "Output dir: ${METHOD_OUT_DIR}"
-echo "Log dir: ${LOG_DIR}"
+echo "Output directory: ${DATASET_OUT_DIR}"
 echo "============================================================"
 
 if [[ ! -f "${PREPARED_RDS}" ]]; then
@@ -93,7 +83,7 @@ if [[ ! -f "${PREPARED_RDS}" ]]; then
 fi
 
 if [[ ! -f "${SCRIPT}" ]]; then
-  echo "ERROR: Missing analysis script: ${SCRIPT}"
+  echo "ERROR: Missing preflight script: ${SCRIPT}"
   exit 1
 fi
 
@@ -106,37 +96,34 @@ echo "Checking R binary:"
 ls -lh "${R_BIN}"
 "${R_BIN}" --version
 
-echo "Checking R script:"
+echo "Checking preflight script:"
 ls -lh "${SCRIPT}"
 
 echo "Checking prepared RDS:"
 ls -lh "${PREPARED_RDS}"
 
-echo "Checking output directory:"
-ls -ld "${METHOD_OUT_DIR}"
-
-echo "Starting R analysis command:"
-echo "${R_BIN} ${SCRIPT} ${PREPARED_RDS} ${METHOD_OUT_DIR}"
+echo "Starting preflight command:"
+echo "${R_BIN} ${SCRIPT} ${PREPARED_RDS} ${DATASET_OUT_DIR}"
 echo "============================================================"
 
 set +e
 
 "${R_BIN}" "${SCRIPT}" \
   "${PREPARED_RDS}" \
-  "${METHOD_OUT_DIR}"
+  "${DATASET_OUT_DIR}"
 
 EXIT_CODE=$?
 
 set -e
 
 echo "============================================================"
-echo "R analysis exit code: ${EXIT_CODE}"
+echo "R preflight exit code: ${EXIT_CODE}"
 echo "Finished at: $(date)"
 echo "============================================================"
 
 if [[ "${EXIT_CODE}" -ne 0 ]]; then
-  echo "ERROR: R analysis failed for ${METHOD} on ${DATASET_BASE}_${MODE}"
+  echo "ERROR: Preflight failed for ${DATASET_NAME}"
   exit "${EXIT_CODE}"
 fi
 
-echo "Finished ${METHOD} on ${DATASET_BASE}_${MODE}"
+echo "Finished preflight for ${DATASET_NAME}"

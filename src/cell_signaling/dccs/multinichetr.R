@@ -11,23 +11,22 @@ options(
 suppressPackageStartupMessages({
   library(Seurat)
   library(dplyr)
-  library(tidyr)
   library(tibble)
   library(stringr)
-  library(purrr)
-  library(ggplot2)
-  library(forcats)
-  library(circlize)
   library(SingleCellExperiment)
   library(SummarizedExperiment)
   library(nichenetr)
   library(multinichenetr)
+  library(tidyr)
+  library(ggplot2)
+  library(forcats)
+  library(circlize)
   library(RColorBrewer)
   library(magrittr)
 })
 
 # ============================================================
-# 1. arguments and output folders
+# 1. arguments
 # ============================================================
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -40,122 +39,126 @@ input_file <- args[[1]]
 base_output_dir <- args[[2]]
 
 dataset_name <- tools::file_path_sans_ext(basename(input_file))
-
 dataset_mode <- stringr::str_extract(
   dataset_name,
   "(all|diseasedOnly|healthyOnly)$"
 )
 
-dataset_clean <- dataset_name %>%
-  stringr::str_remove("_(all|diseasedOnly|healthyOnly)$")
-
-if (is.na(dataset_mode)) {
-  dataset_mode <- "unknownMode"
-}
+dataset_clean <- stringr::str_remove(
+  dataset_name,
+  "_(all|diseasedOnly|healthyOnly)$"
+)
 
 plot_title <- function(title) {
   paste0(title, "\n", dataset_clean, " | ", dataset_mode)
 }
 
 out_dir <- file.path(base_output_dir, dataset_name)
-plot_dir <- file.path(out_dir, "plots")
 table_dir <- file.path(out_dir, "tables")
+plot_dir <- file.path(out_dir, "plots")
 
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
-message("Analyzing: ", dataset_name)
-message("Input: ", input_file)
-message("Output directory: ", out_dir)
-message("Plot directory: ", plot_dir)
-message("Table directory: ", table_dir)
+save_table <- function(x, filename) {
+  write.csv(
+    x,
+    file.path(table_dir, filename),
+    row.names = FALSE
+  )
+}
 
 save_plot <- function(plot, filename, width = 8, height = 6, dpi = 300) {
-  out_file <- file.path(plot_dir, filename)
-
   ggsave(
-    filename = out_file,
+    filename = file.path(plot_dir, filename),
     plot = plot,
     width = width,
     height = height,
     dpi = dpi,
     bg = "white"
   )
-
-  message("Saved plot: ", out_file)
 }
 
-save_table <- function(x, filename) {
-  out_file <- file.path(table_dir, filename)
-  write.csv(x, out_file, row.names = FALSE)
-  message("Saved table: ", out_file)
-}
+message("Dataset: ", dataset_name)
 
 # ============================================================
-# 2. load seurat object and metadata settings
+# 2. load and prepare metadata
 # ============================================================
 
 seurat_obj <- readRDS(input_file)
-seurat_obj <- subset(
-  seurat_obj,
-  subset = !is.na(lineage) & !is.na(pla_status) & !is.na(sample)
-)
-DefaultAssay(seurat_obj)
 
-sample_col <- "sample"
-donor_col <- "donor_id"
-celltype_col <- "celltype"
-celltype_full <- "celltype_full"
 condition_col <- "pla_status"
 lineage_col <- "lineage"
 
+if (grepl("ImmuneAging", dataset_name)) {
+  sample_col <- "donor_id"
+  pair_col <- "donor_id"
+
+} else if (grepl("our_dataset", dataset_name)) {
+  sample_col <- "sample_ID"
+  pair_col <- "patient"
+
+} else {
+  sample_col <- "sample"
+  pair_col <- "sample"
+}
+
+message("Using sample column: ", sample_col)
+message("Using pairing column: ", pair_col)
+
+required_cols <- c(
+  sample_col,
+  pair_col,
+  condition_col,
+  lineage_col
+)
+
+missing_cols <- setdiff(
+  required_cols,
+  colnames(seurat_obj@meta.data)
+)
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing metadata columns: ",
+    paste(missing_cols, collapse = ", ")
+  )
+}
+
+keep <- complete.cases(
+  seurat_obj@meta.data[, required_cols, drop = FALSE]
+)
+
+seurat_obj <- subset(
+  seurat_obj,
+  cells = colnames(seurat_obj)[keep]
+)
+
+DefaultAssay(seurat_obj) <- "RNA"
+
 required_conditions <- c("PLA", "platelet-free")
-available_conditions <- unique(as.character(seurat_obj$pla_status))
 
 missing_conditions <- setdiff(
   required_conditions,
-  available_conditions
-)
-
-message(
-  "Available pla_status values: ",
-  paste(sort(available_conditions), collapse = ", ")
+  unique(as.character(seurat_obj@meta.data[[condition_col]]))
 )
 
 if (length(missing_conditions) > 0) {
   stop(
-    "Cannot perform PLA versus platelet-free comparison. ",
-    "Missing condition(s): ",
+    "Missing conditions: ",
     paste(missing_conditions, collapse = ", ")
   )
 }
 
 seurat_obj$sample_condition <- paste(
-  seurat_obj[[sample_col]][, 1],
-  seurat_obj[[condition_col]][, 1],
+  seurat_obj@meta.data[[sample_col]],
+  seurat_obj@meta.data[[condition_col]],
   sep = "_"
 )
 
-metadata_summary <- seurat_obj@meta.data %>%
-  dplyr::count(
-    sample = .data[[sample_col]],
-    condition = .data[[condition_col]],
-    lineage = .data[[lineage_col]],
-    name = "n_cells"
-  )
-
-save_table(metadata_summary, "metadata_sample_condition_lineage_counts.csv")
-
-sample_condition_check <- seurat_obj@meta.data %>%
-  dplyr::distinct(
-    sample = .data[[sample_col]],
-    condition = .data[[condition_col]]
-  ) %>%
-  dplyr::count(sample, name = "n_conditions") %>%
-  dplyr::filter(n_conditions > 1)
-
-save_table(sample_condition_check, "sample_condition_check.csv")
+seurat_obj$pair_id <- as.character(
+  seurat_obj@meta.data[[pair_col]]
+)
 
 # ============================================================
 # 3. analysis settings
@@ -164,42 +167,81 @@ save_table(sample_condition_check, "sample_condition_check.csv")
 organism <- "human"
 
 sample_id <- "sample_condition"
-group_id <- "pla_status"
-celltype_id <- "lineage"
+group_id <- condition_col
+celltype_id <- lineage_col
 
-covariates <- "sample"
+covariates <- "pair_id"
 batches <- NA
 
-min_cells <- 10
+min_cells_config <- c(
+  "gated_heart_processed_all" = 5L,
+  "gated_heart_processed_diseasedOnly" = 5L,
+  "gated_heart_processed_healthyOnly" = NA_integer_,
+
+  "gated_ImmuneAging_all" = 8L,
+  "gated_ImmuneAging_diseasedOnly" = NA_integer_,
+  "gated_ImmuneAging_healthyOnly" = 8L,
+
+  "gated_our_dataset_processed_all" = 8L,
+  "gated_our_dataset_processed_diseasedOnly" = 8L,
+  "gated_our_dataset_processed_healthyOnly" = 5L,
+
+  "gated_sepsis_processed_all" = 20L,
+  "gated_sepsis_processed_diseasedOnly" = 20L,
+  "gated_sepsis_processed_healthyOnly" = 15L,
+
+  "gated_vaccine_processed_all" = 5L,
+  "gated_vaccine_processed_diseasedOnly" = 5L,
+  "gated_vaccine_processed_healthyOnly" = 5L,
+
+  "gated_skin_processed_all" = 3L,
+  "gated_skin_processed_diseasedOnly" = 3L,
+  "gated_skin_processed_healthyOnly" = 5L
+)
+
+if (!dataset_name %in% names(min_cells_config)) {
+  stop("No min_cells configured for dataset: ", dataset_name)
+}
+
+min_cells <- unname(min_cells_config[[dataset_name]])
+
+if (is.na(min_cells)) {
+  message(
+    "Skipping ",
+    dataset_name,
+    ": insufficient paired samples."
+  )
+  quit(save = "no", status = 0)
+}
+
+message("Using min_cells: ", min_cells)
+
 min_sample_prop <- 0.50
 fraction_cutoff <- 0.05
 
 logFC_threshold <- 0.50
 p_val_threshold <- 0.05
 p_val_adj <- TRUE
-
 top_n_target <- 250
-ligand_activity_down <- FALSE
-analyse_condition_specific_celltypes <- TRUE
 
 options(timeout = 120)
 
 # ============================================================
-# 4. load ligand-receptor and ligand-target resources
+# 4. resources
 # ============================================================
 
-lr_network_all <- readRDS(url(
+lr_network <- readRDS(url(
   "https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds"
 )) %>%
-  dplyr::mutate(
-    ligand = convert_alias_to_symbols(ligand, organism = organism),
-    receptor = convert_alias_to_symbols(receptor, organism = organism),
-    ligand = make.names(ligand),
-    receptor = make.names(receptor)
-  )
-
-lr_network <- lr_network_all %>%
-  dplyr::distinct(ligand, receptor)
+  transmute(
+    ligand = make.names(
+      convert_alias_to_symbols(ligand, organism = organism)
+    ),
+    receptor = make.names(
+      convert_alias_to_symbols(receptor, organism = organism)
+    )
+  ) %>%
+  distinct()
 
 ligand_target_matrix <- readRDS(url(
   "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"
@@ -214,47 +256,40 @@ rownames(ligand_target_matrix) <- rownames(ligand_target_matrix) %>%
   make.names()
 
 lr_network <- lr_network %>%
-  dplyr::filter(ligand %in% colnames(ligand_target_matrix))
+  filter(ligand %in% colnames(ligand_target_matrix))
 
-ligand_target_matrix <- ligand_target_matrix[, unique(lr_network$ligand)]
-
-save_table(lr_network, "lr_network_filtered.csv")
+ligand_target_matrix <- ligand_target_matrix[
+  ,
+  unique(lr_network$ligand),
+  drop = FALSE
+]
 
 # ============================================================
-# 5. convert to SingleCellExperiment and clean identifiers
+# 5. convert to SCE
 # ============================================================
 
-sce <- Seurat::as.SingleCellExperiment(seurat_obj, assay = "RNA")
+sce <- Seurat::as.SingleCellExperiment(
+  seurat_obj,
+  assay = "RNA"
+)
+
 sce <- alias_to_symbol_SCE(sce, organism) %>%
   makenames_SCE()
 
-colData(sce)[, sample_id] <- colData(sce)[, sample_id] %>%
-  as.character() %>%
-  make.names() %>%
-  factor()
+for (column in c(sample_id, group_id, celltype_id, covariates)) {
+  colData(sce)[[column]] <- factor(
+    make.names(
+      as.character(colData(sce)[[column]])
+    )
+  )
+}
 
-colData(sce)[, group_id] <- colData(sce)[, group_id] %>%
-  as.character() %>%
-  make.names() %>%
-  factor()
-
-colData(sce)[, celltype_id] <- colData(sce)[, celltype_id] %>%
-  as.character() %>%
-  make.names() %>%
-  factor()
-
-senders_oi <- colData(sce)[, celltype_id] %>%
-  unique() %>%
-  as.character()
-
-receivers_oi <- colData(sce)[, celltype_id] %>%
-  unique() %>%
-  as.character()
-
-sce <- sce[, colData(sce)[, celltype_id] %in% union(senders_oi, receivers_oi)]
+celltypes_oi <- unique(
+  as.character(colData(sce)[[celltype_id]])
+)
 
 # ============================================================
-# 6. abundance filtering
+# 6. abundance and expression
 # ============================================================
 
 abundance_info <- get_abundance_info(
@@ -263,115 +298,10 @@ abundance_info <- get_abundance_info(
   group_id = group_id,
   celltype_id = celltype_id,
   min_cells = min_cells,
-  senders_oi = senders_oi,
-  receivers_oi = receivers_oi,
+  senders_oi = celltypes_oi,
+  receivers_oi = celltypes_oi,
   batches = batches
 )
-
-save_table(
-  abundance_info$abundance_data,
-  "abundance_data_raw.csv"
-)
-
-if (!is.null(abundance_info$abund_plot_sample)) {
-  save_plot(
-    abundance_info$abund_plot_sample,
-    "01_abundance_per_sample.png",
-    width = 10,
-    height = 7
-  )
-}
-
-sample_group_celltype_df <- abundance_info$abundance_data %>%
-  dplyr::filter(n > min_cells) %>%
-  dplyr::ungroup() %>%
-  dplyr::distinct(sample_id, group_id) %>%
-  cross_join(
-    abundance_info$abundance_data %>%
-      dplyr::ungroup() %>%
-      dplyr::distinct(celltype_id)
-  ) %>%
-  dplyr::arrange(sample_id)
-
-abundance_df <- sample_group_celltype_df %>%
-  dplyr::left_join(
-    abundance_info$abundance_data %>% dplyr::ungroup(),
-    by = c("sample_id", "group_id", "celltype_id")
-  )
-
-abundance_df$n[is.na(abundance_df$n)] <- 0
-abundance_df$keep[is.na(abundance_df$keep)] <- FALSE
-
-abundance_df_summarized <- abundance_df %>%
-  dplyr::mutate(keep = as.logical(keep)) %>%
-  dplyr::group_by(group_id, celltype_id) %>%
-  dplyr::summarise(
-    samples_present = sum(keep),
-    .groups = "drop"
-  )
-
-celltypes_absent_one_condition <- abundance_df_summarized %>%
-  dplyr::filter(samples_present == 0) %>%
-  dplyr::pull(celltype_id) %>%
-  unique()
-
-celltypes_present_one_condition <- abundance_df_summarized %>%
-  dplyr::filter(samples_present >= 2) %>%
-  dplyr::pull(celltype_id) %>%
-  unique()
-
-condition_specific_celltypes <- intersect(
-  celltypes_absent_one_condition,
-  celltypes_present_one_condition
-)
-
-total_nr_conditions <- colData(sce)[, group_id] %>%
-  unique() %>%
-  length()
-
-absent_celltypes <- abundance_df_summarized %>%
-  dplyr::filter(samples_present < 2) %>%
-  dplyr::group_by(celltype_id) %>%
-  dplyr::count() %>%
-  dplyr::filter(n == total_nr_conditions) %>%
-  dplyr::pull(celltype_id)
-
-save_table(abundance_df, "abundance_df_completed.csv")
-save_table(abundance_df_summarized, "abundance_df_summarized.csv")
-
-condition_specific_celltypes <- as.character(condition_specific_celltypes)
-absent_celltypes <- as.character(absent_celltypes)
-
-writeLines(
-  condition_specific_celltypes,
-  file.path(table_dir, "condition_specific_celltypes.txt")
-)
-
-writeLines(
-  absent_celltypes,
-  file.path(table_dir, "absent_celltypes.txt")
-)
-
-message("Condition-specific celltypes:")
-message(paste(condition_specific_celltypes, collapse = ", "))
-
-message("Absent celltypes:")
-message(paste(absent_celltypes, collapse = ", "))
-
-if (analyse_condition_specific_celltypes) {
-  senders_oi <- setdiff(senders_oi, absent_celltypes)
-  receivers_oi <- setdiff(receivers_oi, absent_celltypes)
-} else {
-  excluded_celltypes <- union(absent_celltypes, condition_specific_celltypes)
-  senders_oi <- setdiff(senders_oi, excluded_celltypes)
-  receivers_oi <- setdiff(receivers_oi, excluded_celltypes)
-}
-
-sce <- sce[, colData(sce)[, celltype_id] %in% union(senders_oi, receivers_oi)]
-
-# ============================================================
-# 7. gene filtering
-# ============================================================
 
 frq_list <- get_frac_exprs(
   sce = sce,
@@ -385,17 +315,15 @@ frq_list <- get_frac_exprs(
 )
 
 genes_oi <- frq_list$expressed_df %>%
-  dplyr::filter(expressed == TRUE) %>%
-  dplyr::pull(gene) %>%
+  filter(expressed) %>%
+  pull(gene) %>%
   unique()
 
+if (length(genes_oi) == 0) {
+  stop("No expressed genes passed filtering.")
+}
+
 sce <- sce[genes_oi, ]
-
-save_table(frq_list$expressed_df, "expressed_genes_by_celltype.csv")
-
-# ============================================================
-# 8. pseudobulk expression processing
-# ============================================================
 
 abundance_expression_info <- process_abundance_expression_info(
   sce = sce,
@@ -403,28 +331,31 @@ abundance_expression_info <- process_abundance_expression_info(
   group_id = group_id,
   celltype_id = celltype_id,
   min_cells = min_cells,
-  senders_oi = senders_oi,
-  receivers_oi = receivers_oi,
+  senders_oi = celltypes_oi,
+  receivers_oi = celltypes_oi,
   lr_network = lr_network,
   batches = batches,
   frq_list = frq_list,
   abundance_info = abundance_info
 )
 
-saveRDS(
-  abundance_expression_info,
-  file.path(out_dir, "abundance_expression_info.rds")
+# ============================================================
+# 7. differential expression
+# ============================================================
+
+contrasts_oi <- c(
+  "'PLA-platelet.free','platelet.free-PLA'"
 )
 
-# ============================================================
-# 9. differential expression
-# ============================================================
-
-contrasts_oi <- c("'PLA-platelet.free','platelet.free-PLA'")
-
 contrast_tbl <- tibble(
-  contrast = c("PLA-platelet.free", "platelet.free-PLA"),
-  group = c("PLA", "platelet.free")
+  contrast = c(
+    "PLA-platelet.free",
+    "platelet.free-PLA"
+  ),
+  group = c(
+    "PLA",
+    "platelet.free"
+  )
 )
 
 DE_info <- get_DE_info(
@@ -440,137 +371,139 @@ DE_info <- get_DE_info(
 )
 
 celltype_de <- DE_info$celltype_de$de_output_tidy
-sender_receiver_de <- DE_info$sender_receiver_de
 
-if (is.null(sender_receiver_de)) {
-  stop("sender_receiver_de is NULL. Check names(DE_info) and the output of get_DE_info().")
+if (is.null(celltype_de) || nrow(celltype_de) == 0) {
+  stop("No cell-type DE results were generated.")
 }
 
-saveRDS(DE_info, file.path(out_dir, "DE_info.rds"))
-save_table(celltype_de, "celltype_de.csv")
-save_table(sender_receiver_de, "sender_receiver_de.csv")
+included_celltypes <- unique(celltype_de$cluster_id)
 
-abundance_kept_summary <- abundance_info$abundance_data %>%
-  dplyr::ungroup() %>%
-  dplyr::filter(keep == TRUE) %>%
-  dplyr::count(group_id, celltype_id)
-
-save_table(abundance_kept_summary, "abundance_kept_summary.csv")
-
-if (!is.null(DE_info$hist_pvals)) {
-  save_plot(
-    DE_info$hist_pvals,
-    "02_deseq_pvalue_histograms.png",
-    width = 10,
-    height = 7
-  )
-}
-
-# ============================================================
-# 10. geneset and ligand activity analysis
-# ============================================================
-
-geneset_assessment <- contrast_tbl$contrast %>%
-  lapply(
-    process_geneset_data,
-    celltype_de,
-    logFC_threshold,
-    p_val_adj,
-    p_val_threshold
-  ) %>%
-  bind_rows()
-
-save_table(geneset_assessment, "geneset_assessment.csv")
-
-ligand_activities_targets_DEgenes <- suppressMessages(suppressWarnings(
-  get_ligand_activities_targets_DEgenes(
-    receiver_de = celltype_de,
-    receivers_oi = intersect(receivers_oi, unique(celltype_de$cluster_id)),
-    ligand_target_matrix = ligand_target_matrix,
-    logFC_threshold = logFC_threshold,
-    p_val_threshold = p_val_threshold,
-    p_val_adj = p_val_adj,
-    top_n_target = top_n_target
-  )
-))
-
-save_table(
-  ligand_activities_targets_DEgenes,
-  "ligand_activities_targets_DEgenes.csv"
+sender_receiver_de <- combine_sender_receiver_de(
+  sender_de = celltype_de,
+  receiver_de = celltype_de,
+  senders_oi = included_celltypes,
+  receivers_oi = included_celltypes,
+  lr_network = lr_network
 )
 
+if (is.null(sender_receiver_de) || nrow(sender_receiver_de) == 0) {
+  stop("No ligand-receptor combinations were generated.")
+}
+
 # ============================================================
-# 11. prioritization
+# 8. ligand activity
+# ============================================================
+
+ligand_activities <- suppressMessages(
+  suppressWarnings(
+    get_ligand_activities_targets_DEgenes(
+      receiver_de = celltype_de,
+      receivers_oi = included_celltypes,
+      ligand_target_matrix = ligand_target_matrix,
+      logFC_threshold = logFC_threshold,
+      p_val_threshold = p_val_threshold,
+      p_val_adj = p_val_adj,
+      top_n_target = top_n_target
+    )
+  )
+)
+
+if (is.null(ligand_activities) || nrow(ligand_activities) == 0) {
+  stop(
+    "No ligand activities were generated. ",
+    "Check DE thresholds and included receiver cell types."
+  )
+}
+
+# ============================================================
+# 9. prioritization
 # ============================================================
 
 sender_receiver_tbl <- sender_receiver_de %>%
-  dplyr::distinct(sender, receiver)
+  distinct(sender, receiver)
 
-metadata_combined <- colData(sce) %>%
-  dplyr::as_tibble()
+grouping_tbl <- as_tibble(colData(sce)) %>%
+  distinct(
+    sample = .data[[sample_id]],
+    group = .data[[group_id]]
+  )
 
-if (!is.na(batches)) {
-  grouping_tbl <- metadata_combined[, c(sample_id, group_id, batches)] %>%
-    dplyr::as_tibble() %>%
-    dplyr::distinct()
-
-  colnames(grouping_tbl) <- c("sample", "group", batches)
-} else {
-  grouping_tbl <- metadata_combined[, c(sample_id, group_id)] %>%
-    dplyr::as_tibble() %>%
-    dplyr::distinct()
-
-  colnames(grouping_tbl) <- c("sample", "group")
-}
-
-prioritization_tables <- suppressMessages(generate_prioritization_tables(
-  sender_receiver_info = abundance_expression_info$sender_receiver_info,
+prioritization_tables <- generate_prioritization_tables(
+  sender_receiver_info =
+    abundance_expression_info$sender_receiver_info,
   sender_receiver_de = sender_receiver_de,
-  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
+  ligand_activities_targets_DEgenes = ligand_activities,
   contrast_tbl = contrast_tbl,
   sender_receiver_tbl = sender_receiver_tbl,
   grouping_tbl = grouping_tbl,
   scenario = "regular",
   fraction_cutoff = fraction_cutoff,
-  abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-  abundance_data_sender = abundance_expression_info$abundance_data_sender,
-  ligand_activity_down = ligand_activity_down
-))
-
-lr_target_prior_cor = lr_target_prior_cor_inference(
-  receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% unique(), 
-  abundance_expression_info = abundance_expression_info, 
-  celltype_de = celltype_de, 
-  grouping_tbl = grouping_tbl, 
-  prioritization_tables = prioritization_tables, 
-  ligand_target_matrix = ligand_target_matrix, 
-  logFC_threshold = logFC_threshold, 
-  p_val_threshold = p_val_threshold, 
-  p_val_adj = p_val_adj
-  )
-
-multinichenet_output <- list(
-  celltype_info = abundance_expression_info$celltype_info,
-  celltype_de = celltype_de,
-  sender_receiver_info = abundance_expression_info$sender_receiver_info,
-  sender_receiver_de = sender_receiver_de,
-  ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-  prioritization_tables = prioritization_tables,
-  grouping_tbl = grouping_tbl,
-  lr_target_prior_cor = lr_target_prior_cor
+  abundance_data_receiver =
+    abundance_expression_info$abundance_data_receiver,
+  abundance_data_sender =
+    abundance_expression_info$abundance_data_sender,
+  ligand_activity_down = FALSE
 )
 
-multinichenet_output <- make_lite_output(multinichenet_output)
+# ============================================================
+# 10. save
+# ============================================================
+
+multinichenet_output <- list(
+  dataset_name = dataset_name,
+  settings = list(
+    sample_col = sample_col,
+    pair_col = pair_col,
+    min_cells = min_cells,
+    min_sample_prop = min_sample_prop,
+    fraction_cutoff = fraction_cutoff
+  ),
+  abundance_info = abundance_info,
+  expressed_df = frq_list$expressed_df,
+  abundance_expression_info = abundance_expression_info,
+  DE_info = DE_info,
+  celltype_de = celltype_de,
+  sender_receiver_de = sender_receiver_de,
+  ligand_activities_targets_DEgenes = ligand_activities,
+  prioritization_tables = prioritization_tables,
+  grouping_tbl = grouping_tbl
+)
 
 saveRDS(
   multinichenet_output,
   file.path(out_dir, "multinichenet_output.rds")
 )
 
-save_table(grouping_tbl, "grouping_tbl.csv")
 save_table(
   prioritization_tables$group_prioritization_tbl,
   "group_prioritization_tbl.csv"
+)
+
+save_table(
+  celltype_de,
+  "celltype_de.csv"
+)
+
+save_table(
+  sender_receiver_de,
+  "sender_receiver_de.csv"
+)
+
+settings_table <- tibble(
+  dataset = dataset_name,
+  sample_col = sample_col,
+  pair_col = pair_col,
+  min_cells = min_cells,
+  min_sample_prop = min_sample_prop,
+  fraction_cutoff = fraction_cutoff,
+  logFC_threshold = logFC_threshold,
+  p_val_threshold = p_val_threshold,
+  p_val_adj = p_val_adj
+)
+
+save_table(
+  settings_table,
+  "analysis_settings.csv"
 )
 
 # ============================================================
@@ -603,41 +536,49 @@ save_table(
   "prioritized_tbl_oi_top50.csv"
 )
 
-senders_receivers <- union(
-  unique(prioritized_tbl_oi$sender),
-  unique(prioritized_tbl_oi$receiver)
-) %>%
-  sort()
+if (nrow(prioritized_tbl_oi) > 0) {
 
-base_palette <- RColorBrewer::brewer.pal(
-  n = 11,
-  name = "Spectral"
-)
+  senders_receivers <- union(
+    unique(prioritized_tbl_oi$sender),
+    unique(prioritized_tbl_oi$receiver)
+  ) %>%
+    sort()
 
-colors_sender <- colorRampPalette(base_palette)(length(senders_receivers)) %>%
-  magrittr::set_names(senders_receivers)
+  base_palette <- RColorBrewer::brewer.pal(
+    n = 11,
+    name = "Spectral"
+  )
 
-colors_receiver <- colors_sender
+  colors_sender <- colorRampPalette(base_palette)(
+    length(senders_receivers)
+  ) %>%
+    magrittr::set_names(senders_receivers)
 
-png(
-  filename = file.path(plot_dir, "03_circos_group_comparison.png"),
-  width = 3000,
-  height = 3000,
-  res = 300
-)
+  colors_receiver <- colors_sender
 
-circos_list <- make_circos_group_comparison(
-  prioritized_tbl_oi,
-  colors_sender,
-  colors_receiver
-)
+  png(
+    filename = file.path(plot_dir, "03_circos_group_comparison.png"),
+    width = 3000,
+    height = 3000,
+    res = 300
+  )
 
-dev.off()
+  circos_list <- make_circos_group_comparison(
+    prioritized_tbl_oi,
+    colors_sender,
+    colors_receiver
+  )
 
-saveRDS(
-  circos_list,
-  file.path(out_dir, "circos_group_comparison.rds")
-)
+  dev.off()
+
+  saveRDS(
+    circos_list,
+    file.path(out_dir, "circos_group_comparison.rds")
+  )
+
+} else {
+  message("Skipping chord plot: no prioritized interactions.")
+}
 
 # ============================================================
 # 13. ligand-receptor product/activity plot
@@ -656,23 +597,29 @@ save_table(
   "top_50_lr_pairs_PLA.csv"
 )
 
-plot_oi <- make_sample_lr_prod_activity_plots(
-  multinichenet_output$prioritization_tables,
-  prioritized_tbl_oi_PLA_50
-)
+if (nrow(prioritized_tbl_oi_PLA_50) > 0) {
 
-saveRDS(
-  plot_oi,
-  file.path(out_dir, "sample_lr_prod_activity_plots_PLA.rds")
-)
-
-if (inherits(plot_oi, c("gg", "ggplot", "patchwork"))) {
-  save_plot(
-    plot_oi,
-    "04_sample_lr_prod_activity_PLA.png",
-    width = 12,
-    height = 8
+  plot_oi <- make_sample_lr_prod_activity_plots(
+    multinichenet_output$prioritization_tables,
+    prioritized_tbl_oi_PLA_50
   )
+
+  saveRDS(
+    plot_oi,
+    file.path(out_dir, "sample_lr_prod_activity_plots_PLA.rds")
+  )
+
+  if (inherits(plot_oi, c("gg", "ggplot", "patchwork"))) {
+    save_plot(
+      plot_oi,
+      "04_sample_lr_prod_activity_PLA.png",
+      width = 12,
+      height = 8
+    )
+  }
+
+} else {
+  message("Skipping PLA product/activity plot: no PLA interactions.")
 }
 
 # ============================================================

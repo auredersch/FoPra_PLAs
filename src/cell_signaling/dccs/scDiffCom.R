@@ -22,6 +22,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
   library(future)
   library(grid)
+  library(RColorBrewer)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -589,6 +590,130 @@ save_plot(
   width = 13,
   height = 10
 )
+
+# -------------------------
+# 9. chord plots
+# -------------------------
+# widhts= number of significant ccis between each soruce & target lineage
+chord_data <- scdiff_sig %>%
+  dplyr::count(
+    source,
+    target,
+    direction,
+    name = "n_interactions"
+  )
+
+write.csv(
+  chord_data,
+  file.path(table_dir, "scdiffcom_chord_data.csv"),
+  row.names = FALSE
+)
+
+celltypes <- sort(unique(c(
+  chord_data$source,
+  chord_data$target
+)))
+
+if (length(celltypes) > 0 && nrow(chord_data) > 0) {
+
+  base_palette <- RColorBrewer::brewer.pal(
+    n = 11,
+    name = "Spectral"
+  )
+
+  celltype_colors <- colorRampPalette(base_palette)(
+    length(celltypes)
+  )
+
+  names(celltype_colors) <- celltypes
+
+  png(
+    filename = file.path(
+      plot_dir,
+      "09_scdiffcom_chord_group_comparison.png"
+    ),
+    width = 3600,
+    height = 1800,
+    res = 300
+  )
+
+  par(mfrow = c(1, 2), mar = c(1, 1, 3, 1))
+
+  for (direction_oi in c("PLA-up", "platelet-free-up")) {
+
+    chord_direction <- chord_data %>%
+      dplyr::filter(direction == direction_oi) %>%
+      dplyr::select(
+        source,
+        target,
+        n_interactions
+      )
+
+    circlize::circos.clear()
+
+    if (nrow(chord_direction) > 0) {
+
+      circlize::chordDiagram(
+        x = chord_direction,
+        grid.col = celltype_colors,
+        transparency = 0.35,
+        directional = 1,
+        direction.type = c("arrows", "diffHeight"),
+        diffHeight = -0.04,
+        link.arr.type = "big.arrow",
+        annotationTrack = "grid",
+        preAllocateTracks = 1
+      )
+
+      circlize::circos.trackPlotRegion(
+        track.index = 1,
+        bg.border = NA,
+        panel.fun = function(x, y) {
+          sector_name <- circlize::get.cell.meta.data("sector.index")
+          xlim <- circlize::get.cell.meta.data("xlim")
+          ylim <- circlize::get.cell.meta.data("ylim")
+
+          circlize::circos.text(
+            x = mean(xlim),
+            y = ylim[1] + 0.1,
+            labels = sector_name,
+            facing = "clockwise",
+            niceFacing = TRUE,
+            adj = c(0, 0.5),
+            cex = 0.7
+          )
+        }
+      )
+
+      title(
+        main = paste0(
+          direction_oi,
+          "\n",
+          dataset_clean,
+          " | ",
+          dataset_mode
+        )
+      )
+
+    } else {
+
+      plot.new()
+
+      title(
+        main = paste0(
+          direction_oi,
+          "\nNo significant interactions"
+        )
+      )
+    }
+  }
+
+  circlize::circos.clear()
+  dev.off()
+
+} else {
+  message("Skipping scDiffCom chord plot: no significant interactions.")
+}
 
 message("Finished scDiffCom analysis for: ", dataset_name)
 message("Saved plots to: ", plot_dir)
