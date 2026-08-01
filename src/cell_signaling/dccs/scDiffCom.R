@@ -14,15 +14,14 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(tibble)
   library(stringr)
-  library(purrr)
   library(ggplot2)
   library(forcats)
   library(circlize)
   library(scDiffCom)
-  library(tidyverse)
   library(future)
   library(grid)
   library(RColorBrewer)
+  library(multinichenetr)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -165,38 +164,8 @@ saveRDS(
   file.path(out_dir, "scdiffcom_ORA_results.rds")
 )
 
-if (is.data.frame(ORA_results)) {
-
-  write.csv(
-    ORA_results,
-    file.path(table_dir, "scdiffcom_ORA_results.csv"),
-    row.names = FALSE
-  )
-
-} else if (is.list(ORA_results)) {
-
-  for (nm in names(ORA_results)) {
-    if (is.data.frame(ORA_results[[nm]])) {
-      write.csv(
-        ORA_results[[nm]],
-        file.path(
-          table_dir,
-          paste0("scdiffcom_ORA_", nm, ".csv")
-        ),
-        row.names = FALSE
-      )
-    }
-  }
-}
-
 cci_regulation_counts <- CCI_detected %>%
   dplyr::count(REGULATION)
-
-write.csv(
-  cci_regulation_counts,
-  file.path(table_dir, "scdiffcom_CCI_regulation_counts.csv"),
-  row.names = FALSE
-)
 
 
 # -------------------------
@@ -341,10 +310,13 @@ scdiff_sig <- scdiff_plot %>%
   dplyr::filter(direction %in% c("PLA-up", "platelet-free-up"))
 
 scdiff_direction_counts <- scdiff_plot %>%
-  dplyr::count(direction)
+  dplyr::count(direction) # hier sind auch flats dabei
 
 scdiff_sig_direction_counts <- scdiff_sig %>%
   dplyr::count(direction)
+
+#this is counting rows, not necessarily unique ligand–receptor pairs
+#same LR pair can appear several times in different source–target lineage combinations
 
 write.csv(
   scdiff_plot,
@@ -355,18 +327,6 @@ write.csv(
 write.csv(
   scdiff_sig,
   file.path(table_dir, "scdiffcom_plot_table_significant.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  scdiff_direction_counts,
-  file.path(table_dir, "scdiffcom_direction_counts_all.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  scdiff_sig_direction_counts,
-  file.path(table_dir, "scdiffcom_direction_counts_significant.csv"),
   row.names = FALSE
 )
 
@@ -410,12 +370,6 @@ pair_counts_scdiff <- scdiff_sig %>%
   dplyr::ungroup() %>%
   dplyr::arrange(desc(total)) %>%
   dplyr::mutate(lineage_pair = fct_reorder(lineage_pair, total))
-
-write.csv(
-  pair_counts_scdiff,
-  file.path(table_dir, "scdiffcom_pair_counts.csv"),
-  row.names = FALSE
-)
 
 p_pair_counts_scdiff <- ggplot(
   pair_counts_scdiff,
@@ -465,12 +419,6 @@ net_direction_scdiff <- scdiff_sig %>%
     net = `PLA-up` - `platelet-free-up`
   )
 
-write.csv(
-  net_direction_scdiff,
-  file.path(table_dir, "scdiffcom_net_direction.csv"),
-  row.names = FALSE
-)
-
 p_net_direction_scdiff <- ggplot(
   net_direction_scdiff,
   aes(x = target, y = source, fill = net)
@@ -501,24 +449,35 @@ save_plot(
 # -------------------------
 
 top_recurrent_scdiff <- scdiff_sig %>%
-  dplyr::count(interaction, direction, name = "n_lineage_pairs") %>%
-  dplyr::group_by(interaction) %>%
-  dplyr::mutate(total = sum(n_lineage_pairs)) %>%
-  dplyr::ungroup() %>%
-  dplyr::slice_max(total, n = 25, with_ties = FALSE) %>%
-  dplyr::mutate(interaction = fct_reorder(interaction, total))
-
-write.csv(
-  top_recurrent_scdiff,
-  file.path(table_dir, "scdiffcom_top_recurrent_lr_pairs.csv"),
-  row.names = FALSE
-)
+  dplyr::count(
+    interaction,
+    direction,
+    name = "n_lineage_pairs"
+  ) %>%
+  dplyr::group_by(direction) %>%
+  dplyr::slice_max(
+    order_by = n_lineage_pairs,
+    n = 15,
+    with_ties = FALSE
+  ) %>%
+  dplyr::ungroup()
 
 p_top_recurrent_scdiff <- ggplot(
   top_recurrent_scdiff,
-  aes(x = n_lineage_pairs, y = interaction, fill = direction)
+  aes(
+    x = n_lineage_pairs,
+    y = forcats::fct_reorder(
+      interaction,
+      n_lineage_pairs
+    ),
+    fill = direction
+  )
 ) +
   geom_col() +
+  facet_wrap(
+    ~ direction,
+    scales = "free_y"
+  ) +
   theme_bw() +
   scale_fill_manual(
     values = c(
@@ -527,7 +486,9 @@ p_top_recurrent_scdiff <- ggplot(
     )
   ) +
   labs(
-    title = plot_title("Most recurrent differential scDiffCom ligand-receptor pairs"),
+    title = plot_title(
+      "Most recurrent differential scDiffCom ligand-receptor pairs"
+    ),
     x = "# source-target lineage pairs",
     y = "Ligand → receptor",
     fill = "Direction"
@@ -549,12 +510,6 @@ top_scdiff_per_pair <- scdiff_sig %>%
   dplyr::group_by(lineage_pair) %>%
   dplyr::slice_max(score_abs, n = 5, with_ties = FALSE) %>%
   dplyr::ungroup()
-
-write.csv(
-  top_scdiff_per_pair,
-  file.path(table_dir, "scdiffcom_top_CCI_per_lineage_pair.csv"),
-  row.names = FALSE
-)
 
 p_top_scdiff_per_pair <- ggplot(
   top_scdiff_per_pair,
@@ -592,128 +547,300 @@ save_plot(
 )
 
 # -------------------------
-# 9. chord plots
+# 9. gene-level scDiffCom circos plots
 # -------------------------
-# widhts= number of significant ccis between each soruce & target lineage
-chord_data <- scdiff_sig %>%
-  dplyr::count(
-    source,
-    target,
-    direction,
-    name = "n_interactions"
+
+top_n_circos <- 20
+
+scdiff_circos_tbl <- scdiff_sig %>%
+  dplyr::filter(
+    is.finite(score_abs),
+    !is.na(source),
+    !is.na(target),
+    !is.na(ligand),
+    !is.na(receptor),
+    ligand != "",
+    receptor != ""
+  ) %>%
+  dplyr::group_by(direction) %>%
+  dplyr::slice_max(
+    order_by = score_abs,
+    n = top_n_circos,
+    with_ties = FALSE
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    ligand_node = paste(
+      "L",
+      source,
+      ligand,
+      sep = "::"
+    ),
+    receptor_node = paste(
+      "R",
+      target,
+      receptor,
+      sep = "::"
+    )
   )
 
-write.csv(
-  chord_data,
-  file.path(table_dir, "scdiffcom_chord_data.csv"),
-  row.names = FALSE
-)
 
-celltypes <- sort(unique(c(
-  chord_data$source,
-  chord_data$target
+all_circos_celltypes <- sort(unique(c(
+  scdiff_circos_tbl$source,
+  scdiff_circos_tbl$target
 )))
 
-if (length(celltypes) > 0 && nrow(chord_data) > 0) {
+base_palette <- RColorBrewer::brewer.pal(
+  n = 11,
+  name = "Spectral"
+)
 
-  base_palette <- RColorBrewer::brewer.pal(
-    n = 11,
-    name = "Spectral"
+global_celltype_colors <- grDevices::colorRampPalette(
+  base_palette
+)(length(all_circos_celltypes))
+
+names(global_celltype_colors) <- all_circos_celltypes
+
+plot_scdiff_gene_circos <- function(
+    data,
+    direction_oi,
+    output_file,
+    title_text,
+    celltype_colors
+) {
+
+  plot_data <- data %>%
+    dplyr::filter(direction == direction_oi)
+
+  if (nrow(plot_data) == 0) {
+    message("Skipping ", direction_oi, " circos plot: no interactions.")
+    return(invisible(NULL))
+  }
+
+  # One row per source-ligand-target-receptor interaction
+  links <- plot_data %>%
+    dplyr::transmute(
+      from = ligand_node,
+      to = receptor_node,
+      value = score_abs, # chord wdith
+      source = source,
+      target = target
+    )
+
+  # Cell-type colour palette
+  celltypes <- sort(unique(c(
+    plot_data$source,
+    plot_data$target
+  )))
+
+  direction_colors <- celltype_colors[celltypes]
+
+  # Assign each ligand/receptor sector to its corresponding lineage
+  ligand_annotation <- plot_data %>%
+    dplyr::distinct(
+      node = ligand_node,
+      celltype = source
+    )
+
+  receptor_annotation <- plot_data %>%
+    dplyr::distinct(
+      node = receptor_node,
+      celltype = target
+    )
+
+  node_annotation <- dplyr::bind_rows(
+    ligand_annotation,
+    receptor_annotation
+  ) %>%
+    dplyr::distinct(node, celltype)
+
+  sector_colors <- direction_colors[node_annotation$celltype]
+  names(sector_colors) <- node_annotation$node
+
+  # Keep ligands together and receptors together
+  sector_order <- c(
+    unique(plot_data$ligand_node),
+    unique(plot_data$receptor_node)
   )
 
-  celltype_colors <- colorRampPalette(base_palette)(
-    length(celltypes)
-  )
-
-  names(celltype_colors) <- celltypes
-
-  png(
-    filename = file.path(
-      plot_dir,
-      "09_scdiffcom_chord_group_comparison.png"
-    ),
-    width = 3600,
-    height = 1800,
+  grDevices::png(
+    filename = output_file,
+    width = 4200,
+    height = 4200,
     res = 300
   )
 
-  par(mfrow = c(1, 2), mar = c(1, 1, 3, 1))
+ graphics::par(
+  mar = c(1, 1, 3, 1),
+  xpd = NA
+)
 
-  for (direction_oi in c("PLA-up", "platelet-free-up")) {
+circlize::circos.par(
+  start.degree = 90,
+  canvas.xlim = c(-1.08, 1.08),
+  canvas.ylim = c(-1.08, 1.08),
+  gap.after = c(
+    rep(1.5, length(unique(plot_data$ligand_node)) - 1),
+    8,
+    rep(1.5, length(unique(plot_data$receptor_node)) - 1),
+    8
+  ),
+  track.margin = c(0.005, 0.005),
+  points.overflow.warning = FALSE
+)
 
-    chord_direction <- chord_data %>%
-      dplyr::filter(direction == direction_oi) %>%
-      dplyr::select(
-        source,
-        target,
-        n_interactions
+  circlize::chordDiagram(
+    x = links %>%
+      dplyr::select(from, to, value),
+    order = sector_order,
+    grid.col = sector_colors,
+    col = sector_colors[links$from],
+    transparency = 0.35,
+    directional = 1,
+    direction.type = c("arrows", "diffHeight"),
+    diffHeight = -0.03,
+    link.arr.type = "big.arrow",
+    link.sort = TRUE,
+    link.decreasing = TRUE,
+    link.border = "grey35",
+    link.lwd = 0.5,
+    annotationTrack = "grid",
+    preAllocateTracks = list(
+      track.height = 0.14
+    )
+  )
+
+  circlize::circos.trackPlotRegion(
+    track.index = 1,
+    bg.border = NA,
+    panel.fun = function(x, y) {
+
+      sector <- circlize::get.cell.meta.data("sector.index")
+      xlim <- circlize::get.cell.meta.data("xlim")
+      ylim <- circlize::get.cell.meta.data("ylim")
+
+      # Remove internal L:/R: prefix from displayed label
+      gene_label <- sub(
+        "^[LR]::[^:]+::",
+        "",
+        sector
       )
 
-    circlize::circos.clear()
-
-    if (nrow(chord_direction) > 0) {
-
-      circlize::chordDiagram(
-        x = chord_direction,
-        grid.col = celltype_colors,
-        transparency = 0.35,
-        directional = 1,
-        direction.type = c("arrows", "diffHeight"),
-        diffHeight = -0.04,
-        link.arr.type = "big.arrow",
-        annotationTrack = "grid",
-        preAllocateTracks = 1
-      )
-
-      circlize::circos.trackPlotRegion(
-        track.index = 1,
-        bg.border = NA,
-        panel.fun = function(x, y) {
-          sector_name <- circlize::get.cell.meta.data("sector.index")
-          xlim <- circlize::get.cell.meta.data("xlim")
-          ylim <- circlize::get.cell.meta.data("ylim")
-
-          circlize::circos.text(
-            x = mean(xlim),
-            y = ylim[1] + 0.1,
-            labels = sector_name,
-            facing = "clockwise",
-            niceFacing = TRUE,
-            adj = c(0, 0.5),
-            cex = 0.7
-          )
-        }
-      )
-
-      title(
-        main = paste0(
-          direction_oi,
-          "\n",
-          dataset_clean,
-          " | ",
-          dataset_mode
-        )
-      )
-
-    } else {
-
-      plot.new()
-
-      title(
-        main = paste0(
-          direction_oi,
-          "\nNo significant interactions"
-        )
+      circlize::circos.text(
+        x = mean(xlim),
+        y = mean(ylim),
+        labels = gene_label,
+        facing = "clockwise",
+        niceFacing = TRUE,
+        adj = c(0, 0.5),
+        cex = 0.9
       )
     }
-  }
+  )
+
+  graphics::title(
+    main = title_text,
+    cex.main = 1.3,
+    line = 1
+  )
 
   circlize::circos.clear()
-  dev.off()
-
-} else {
-  message("Skipping scDiffCom chord plot: no significant interactions.")
+  grDevices::dev.off()
 }
+
+save_scdiff_circos_legend <- function(
+    data,
+    direction_oi,
+    output_file,
+    celltype_colors
+) {
+
+  legend_data <- data %>%
+    dplyr::filter(direction == direction_oi)
+
+  if (nrow(legend_data) == 0) {
+    return(invisible(NULL))
+  }
+
+  celltypes <- sort(unique(c(
+    legend_data$source,
+    legend_data$target
+  )))
+
+  direction_colors <- celltype_colors[celltypes]
+
+  grDevices::png(
+    filename = output_file,
+    width = 1800,
+    height = max(900, 180 + 140 * length(celltypes)),
+    res = 300
+  )
+
+  graphics::par(mar = c(1, 1, 1, 1))
+  graphics::plot.new()
+
+  graphics::legend(
+    "center",
+    legend = celltypes,
+    fill = direction_colors[celltypes],
+    border = NA,
+    title = paste0(
+      "Sender and receiver lineages\n",
+      direction_oi
+    ),
+    cex = 1.2,
+    bty = "n",
+    ncol = 1
+  )
+
+  grDevices::dev.off()
+}
+
+plot_scdiff_gene_circos(
+  data = scdiff_circos_tbl,
+  direction_oi = "PLA-up",
+  output_file = file.path(
+    plot_dir,
+    "09a_scdiffcom_gene_circos_PLA_up.png"
+  ),
+  title_text = plot_title(
+    "scDiffCom gene-level interactions: PLA-up"
+  ),
+  celltype_colors = global_celltype_colors
+)
+
+plot_scdiff_gene_circos(
+  data = scdiff_circos_tbl,
+  direction_oi = "platelet-free-up",
+  output_file = file.path(
+    plot_dir,
+    "09b_scdiffcom_gene_circos_platelet_free_up.png"
+  ),
+  title_text = plot_title(
+    "scDiffCom gene-level interactions: platelet-free-up"
+  ),
+  celltype_colors = global_celltype_colors
+)
+
+save_scdiff_circos_legend(
+  data = scdiff_circos_tbl,
+  direction_oi = "PLA-up",
+  output_file = file.path(
+    plot_dir,
+    "09c_scdiffcom_gene_circos_PLA_up_legend.png"
+  ),
+  celltype_colors = global_celltype_colors
+)
+
+save_scdiff_circos_legend(
+  data = scdiff_circos_tbl,
+  direction_oi = "platelet-free-up",
+  output_file = file.path(
+    plot_dir,
+    "09d_scdiffcom_gene_circos_platelet_free_up_legend.png"
+  ),
+  celltype_colors = global_celltype_colors
+)
 
 message("Finished scDiffCom analysis for: ", dataset_name)
 message("Saved plots to: ", plot_dir)

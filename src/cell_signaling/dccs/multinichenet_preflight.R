@@ -6,6 +6,8 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
+# Für welche Lineages existieren bei einem bestimmten min_cells mindestens zwei echte gepaarte PLA/platelet-free-Einheiten?
+
 args <- commandArgs(trailingOnly = TRUE)
 
 input_file <- args[[1]]
@@ -55,6 +57,9 @@ counts <- obj@meta.data %>%
     lineage,
     fill = list(n_cells = 0)
   )
+
+  # pair_id pla_status lineage n_cells
+  # patient1 PLA Monocytes 45
 
 # ============================================================
 # dataset overview
