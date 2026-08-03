@@ -13,8 +13,10 @@ set -euo pipefail
 PROJECT_DIR="/nfs/home/students/i.kaciran/FoPra_PLAs"
 SCRIPT_DIR="${PROJECT_DIR}/src/cell_signaling/dccs"
 
+DATA_DIR="${PROJECT_DIR}/data/datasets"
+PREP_DIR="${DATA_DIR}/prepared_inputs"
+
 RESULTS_DIR="${PROJECT_DIR}/results/differential_ccs"
-PREP_DIR="${RESULTS_DIR}/prepared_inputs"
 LOG_DIR="${PROJECT_DIR}/slurm_logs"
 
 R_BIN="/nfs/home/students/i.kaciran/.conda/envs/liana_r/bin/Rscript"
@@ -37,17 +39,14 @@ MODES=(
 )
 
 METHODS=(
-  #"liana_plus|${SCRIPT_DIR}/liana_plus.R"
   "multinichetr|${SCRIPT_DIR}/multinichetr.R"
   "scDiffCom|${SCRIPT_DIR}/scDiffCom.R"
-  #"split_liana|${SCRIPT_DIR}/split_liana.R"
 )
 
 N_DATASETS=${#DATASETS[@]}
 N_MODES=${#MODES[@]}
 N_METHODS=${#METHODS[@]}
 
-TOTAL_TASKS=$((N_DATASETS * N_MODES * N_METHODS))
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 METHOD_INDEX=$((TASK_ID % N_METHODS))
@@ -61,7 +60,18 @@ METHOD_ENTRY="${METHODS[$METHOD_INDEX]}"
 METHOD="${METHOD_ENTRY%%|*}"
 SCRIPT="${METHOD_ENTRY##*|}"
 
-PREPARED_RDS="${PREP_DIR}/${DATASET_BASE}_${MODE}.rds"
+# Full datasets:
+#   data/datasets/gated_heart_processed.rds
+#
+# Subset datasets:
+#   data/datasets/prepared_inputs/gated_heart_processed_diseasedOnly.rds
+#   data/datasets/prepared_inputs/gated_heart_processed_healthyOnly.rds
+if [[ "${MODE}" == "all" ]]; then
+  INPUT_RDS="${DATA_DIR}/${DATASET_BASE}.rds"
+else
+  INPUT_RDS="${PREP_DIR}/${DATASET_BASE}_${MODE}.rds"
+fi
+
 METHOD_OUT_DIR="${RESULTS_DIR}/${METHOD}"
 
 mkdir -p "${METHOD_OUT_DIR}"
@@ -74,21 +84,25 @@ echo "Host: $(hostname)"
 echo "Working directory: $(pwd)"
 echo "SLURM job ID: ${SLURM_JOB_ID}"
 echo "SLURM array task ID: ${SLURM_ARRAY_TASK_ID}"
-echo "Dataset index: ${DATASET_INDEX}"
-echo "Mode index: ${MODE_INDEX}"
-echo "Method index: ${METHOD_INDEX}"
 echo "Dataset: ${DATASET_BASE}"
 echo "Mode: ${MODE}"
 echo "Method: ${METHOD}"
-echo "Prepared RDS: ${PREPARED_RDS}"
+echo "Input RDS: ${INPUT_RDS}"
 echo "Script: ${SCRIPT}"
 echo "Output dir: ${METHOD_OUT_DIR}"
 echo "Log dir: ${LOG_DIR}"
 echo "============================================================"
 
-if [[ ! -f "${PREPARED_RDS}" ]]; then
-  echo "ERROR: Missing prepared RDS: ${PREPARED_RDS}"
-  echo "Run prepare_cohort_inputs_slurm.sh first."
+if [[ ! -f "${INPUT_RDS}" ]]; then
+  echo "ERROR: Missing input RDS: ${INPUT_RDS}"
+
+  if [[ "${MODE}" == "all" ]]; then
+    echo "Expected the full dataset under: ${DATA_DIR}"
+  else
+    echo "Expected the prepared cohort dataset under: ${PREP_DIR}"
+    echo "Run prepare_cohort_inputs_slurm.sh if it has not been created."
+  fi
+
   exit 1
 fi
 
@@ -109,20 +123,24 @@ ls -lh "${R_BIN}"
 echo "Checking R script:"
 ls -lh "${SCRIPT}"
 
-echo "Checking prepared RDS:"
-ls -lh "${PREPARED_RDS}"
+# Useful for confirming that SLURM used the current script version
+echo "Script checksum:"
+md5sum "${SCRIPT}"
+
+echo "Checking input RDS:"
+ls -lh "${INPUT_RDS}"
 
 echo "Checking output directory:"
 ls -ld "${METHOD_OUT_DIR}"
 
 echo "Starting R analysis command:"
-echo "${R_BIN} ${SCRIPT} ${PREPARED_RDS} ${METHOD_OUT_DIR}"
+echo "${R_BIN} ${SCRIPT} ${INPUT_RDS} ${METHOD_OUT_DIR}"
 echo "============================================================"
 
 set +e
 
 "${R_BIN}" "${SCRIPT}" \
-  "${PREPARED_RDS}" \
+  "${INPUT_RDS}" \
   "${METHOD_OUT_DIR}"
 
 EXIT_CODE=$?
@@ -135,8 +153,8 @@ echo "Finished at: $(date)"
 echo "============================================================"
 
 if [[ "${EXIT_CODE}" -ne 0 ]]; then
-  echo "ERROR: R analysis failed for ${METHOD} on ${DATASET_BASE}_${MODE}"
+  echo "ERROR: R analysis failed for ${METHOD} on ${DATASET_BASE} (${MODE})"
   exit "${EXIT_CODE}"
 fi
 
-echo "Finished ${METHOD} on ${DATASET_BASE}_${MODE}"
+echo "Finished ${METHOD} on ${DATASET_BASE} (${MODE})"

@@ -16,7 +16,7 @@ __pycache__/
 # omnipath
 .omnipathr-log/
 
-slurm_logs/slurm_logs/*.out
+slurm_logs/*.out
 slurm_logs/*.err
 
 multinichenetr/
@@ -26,4 +26,7 @@ results/differential_ccs/**/*.csv
 results/differential_ccs/**/*.rds
 
 data/
+
+# Notebooks
+.ipynb_checkpoints/
 
