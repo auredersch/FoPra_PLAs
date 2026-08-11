@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"sepsis","AUCell","MANNE_DN",FALSE,"raw","gmm_single","gmm_dist_dual",0.623609511537839,0.53466529454582,0.655474183026648,0.451458121397084,53254,27991,64706,139092,-0.0175818368204369,50.8990474104881

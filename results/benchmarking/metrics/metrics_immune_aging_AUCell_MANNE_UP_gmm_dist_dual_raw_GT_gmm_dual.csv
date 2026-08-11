@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","SRI","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"immune_aging","AUCell","MANNE_UP",FALSE,"raw","gmm_dual","gmm_dist_dual",0.469928518960182,0.264087351381884,0.280429703306314,0.309995479564975,0.36153321342182,0.271318190281139,0.340569461456224,5829,10294,15655,44833,0.143997446304531,2.53371975421906

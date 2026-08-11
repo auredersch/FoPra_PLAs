@@ -1,2 +1,2 @@
-"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
-"immune_aging","AUCell","MANNE_DN",FALSE,"raw","gmm_dual","gmm_dist_dual",0.753659156160386,0.127405096203848,0.170533642691415,0.101687880464859,735,3575,6493,65808,0.657823919842113,6.09239243666331
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","AUPR","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"immune_aging","AUCell","MANNE_DN",FALSE,"raw","gmm_dual","gmm_dist_dual",0.612291265276496,0.39235942119158,0.151667569449818,0.449335167354425,0.0912306832991994,1960,2402,19524,52725,0.654468771958341,6.1152561823527

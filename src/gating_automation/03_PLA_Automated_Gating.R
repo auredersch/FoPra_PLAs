@@ -13,7 +13,8 @@ args <- commandArgs(trailingOnly = TRUE)
 CURRENT_FILE <- if(length(args) >= 1) args[1] else "gated_sepsis_processed.rds"
 FILTER_MODE  <- if(length(args) >= 2) args[2] else "raw" # Optionen: "raw", "qc_tolerant", "qc_strict"
 
-INPUT_DIR   <- "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets/"
+#INPUT_DIR   <- "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets/"
+INPUT_DIR   <-  "/nfs/home/students/a.dersch/data"
 OUTPUT_DIR  <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
 BASE_PLOT   <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/gating_automation/"
 QC_BASE     <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/sample_qc/"
@@ -27,6 +28,7 @@ datasets_map = list(
   "gated_vaccine_processed.rds"      = "vaccine",
   "gated_ImmuneAging.rds"            = "immune_aging",
   "gated_our_dataset_processed.rds"  = "impact"
+  "gated_skin_processed.rds"          = "skin"
 )
 
 dataset_type <- datasets_map[[CURRENT_FILE]]
@@ -253,16 +255,16 @@ ggsave(paste0(OUT_DIR, "barplot_fraction_gmm_2d.png"), plot = p3, width = 6, hei
 
 comp_p1 <- p1 + theme(axis.title.x = element_blank()) + scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF"), guide = "none")
 comp_p2 <- p2 + theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF"), guide = "none")
-comp_p3 <- p3 + theme(axis.title.y = element_blank())
+comp_p3 <- p3 + theme(axis.title.y = element_blank()) + scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF"), guide = "none")
 
 composition_plot <- (comp_p1 | comp_p2 | comp_p3) + 
   plot_annotation(
     title = paste("PLA Gating Composition Comparison -", toupper(dataset_type)),
-    subtitle = paste("Filter Mode:", toupper(FILTER_MODE), "| Probabilistic Density Intersection GMM"),
+    subtitle = paste("Filter Mode:", toupper(FILTER_MODE)),
     theme = theme(plot.title = element_text(size = 16, face = "bold"), plot.subtitle = element_text(size = 12))
   )
 ggsave(
-  filename = paste0(OUT_DIR, "supervisor_combined_composition_plot.png"), 
+  filename = paste0(OUT_DIR, "combined_composition_plot.png"), 
   plot = composition_plot, 
   width = 16, 
   height = 6, 

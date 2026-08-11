@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUC","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"vaccine","AUCell","MANNE_DN",FALSE,"raw","gmm_single","gmm_dist_dual",0.64179864617743,0.18607516943931,0.116180927955234,0.46705408191958,4983,37907,5686,89792,-0.165729204627333,26.796884671847

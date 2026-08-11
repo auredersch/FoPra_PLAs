@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","SRI","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"skin","AUCell","WP",FALSE,"raw","gmm_dual","gmm_dist_dual",0.605232683646823,0.0491357179596833,0.0160692389878029,0.0498226580429793,0.0274811268642976,0.266398929049531,0.394477166917259,597,21127,1644,116091,0.558597692552878,7.43139380216599

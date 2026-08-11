@@ -6,18 +6,19 @@
 #SBATCH --cpus-per-task=10         
 #SBATCH --mem=60G                  
 #SBATCH --time=03:00:00            
-#SBATCH --array=1-15               # 5 Datensätze * 3 Modi = 15 parallele Tasks
+#SBATCH --array=1               # 5 Datensätze * 3 Modi = 15 parallele Tasks
 #SBATCH --chdir=/nfs/home/students/a.dersch/FoPra_PLAs # Fixiert den Startordner
 
 mkdir -p slurm_logs
 
 # --- DATENSÄTZE DEFINIEREN ---
 DATASETS=(
-  "gated_heart_processed.rds"
-  "gated_sepsis_processed.rds"
-  "gated_vaccine_processed.rds"
-  "gated_ImmuneAging.rds"
-  "gated_our_dataset_processed.rds"
+  #"gated_heart_processed.rds"
+  #"gated_sepsis_processed.rds"
+  #"gated_vaccine_processed.rds"
+  #"gated_ImmuneAging.rds"
+  #"gated_our_dataset_processed.rds"
+  "gated_skin_processed.rds"
 )
 
 ZERO_INDEX=$((SLURM_ARRAY_TASK_ID - 1))

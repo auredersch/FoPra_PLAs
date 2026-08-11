@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","SRI","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"sepsis","AUCell","GNATENKO",FALSE,"raw","gmm_dual","gmm_dist_dual",0.723970206121994,0.548857712745563,0.342611465638518,0.0216749954843759,0.541353383458647,0.0110588885816975,0.0146945932050971,1080,915,96579,186469,-6.12283704910697,14.3678500850995

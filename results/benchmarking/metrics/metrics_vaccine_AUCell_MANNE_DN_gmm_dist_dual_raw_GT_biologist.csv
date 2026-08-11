@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","SRI","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"vaccine","AUCell","MANNE_DN",FALSE,"raw","biologist","gmm_dist_dual",0.888698203685253,0.664610256241754,0.305827941380855,0.916293215815282,0.901333463586187,0.931757933802924,0.962335226851206,36906,4040,2703,85865,-0.164473114789588,5.76007760763168

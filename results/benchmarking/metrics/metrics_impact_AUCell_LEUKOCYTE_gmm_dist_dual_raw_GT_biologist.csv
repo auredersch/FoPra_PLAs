@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"impact","AUCell","LEUKOCYTE",FALSE,"raw","biologist","gmm_dist_dual",0.456460422986348,0.0737330926570348,0.0797803450240895,0.115843698957155,0.0718180401931765,0.299350649350649,461,5958,1079,11805,-0.175279714696377,3.9971918741862

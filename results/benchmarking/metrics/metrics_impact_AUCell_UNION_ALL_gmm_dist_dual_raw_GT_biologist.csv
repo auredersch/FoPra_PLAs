@@ -1,0 +1,2 @@
+"Dataset","Method","Signature","Ext","Filter_Mode","GT_Source","Threshold_Mode","AUROC","AUPR","Prevalence","F1","Prec","Rec","SRI","TP","FP","FN","TN","Threshold_Value","Runtime_Min"
+"impact","AUCell","UNION_ALL",FALSE,"raw","biologist","gmm_dist_dual",0.422963262318945,0.0751081288193324,0.0797803450240895,0.0980036297640653,0.0917327293318233,0.105194805194805,0.160106901201121,162,1604,1378,16159,1.49584868951824,1.54048048655192
