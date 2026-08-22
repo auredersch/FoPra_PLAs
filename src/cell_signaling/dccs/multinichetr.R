@@ -230,9 +230,6 @@ pairing_check <- seurat_obj@meta.data %>%
     name = "n_conditions"
   )
 
-n_complete_pairs <- sum(
-  pairing_check$n_conditions == 2L
-)
 
 n_complete_pairs <- sum(
   pairing_check$n_conditions == 2
@@ -269,9 +266,9 @@ min_cells_config <- c(
   "gated_ImmuneAging_diseasedOnly" = NA_integer_,
   "gated_ImmuneAging_healthyOnly" = 8L,
 
-  "gated_our_dataset_processed" = 3,
-  "gated_our_dataset_processed_diseasedOnly" = 3,
-  "gated_our_dataset_processed_healthyOnly" = 3,
+  "gated_our_dataset_processed" = 1L,
+  "gated_our_dataset_processed_diseasedOnly" = 1L,
+  "gated_our_dataset_processed_healthyOnly" = 1L,
 
   "gated_sepsis_processed" = 20L,
   "gated_sepsis_processed_diseasedOnly" = 20L,
@@ -506,6 +503,33 @@ contrast_tbl <- tibble(
   )
 )
 
+cat("\n=== DE INPUT CHECK ===\n")
+
+cat("sample_id:", sample_id, "\n")
+cat("group_id:", group_id, "\n")
+cat("celltype_id:", celltype_id, "\n")
+cat("covariates:", covariates, "\n")
+
+cat("\nGroup levels:\n")
+print(levels(colData(sce)[[group_id]]))
+
+cat("\nGroup counts:\n")
+print(table(colData(sce)[[group_id]]))
+
+cat("\nCell type counts:\n")
+print(table(colData(sce)[[celltype_id]]))
+
+cat("\nSample-condition mapping:\n")
+print(
+  as.data.frame(colData(sce)) %>%
+    distinct(
+      sample = .data[[sample_id]],
+      group = .data[[group_id]],
+      pair = .data[[covariates]]
+    ) %>%
+    head(20)
+)
+
 DE_info <- get_DE_info(
   sce = sce,
   sample_id = sample_id,
@@ -695,6 +719,32 @@ if (nrow(mn_plot) == 0) {
 }
 
 # ============================================================
+# 10b. selected top interactions per condition
+# ============================================================
+
+n_selected <- 20
+
+mn_selected <- mn_plot %>%
+  dplyr::group_by(direction) %>%
+  dplyr::slice_max(
+    order_by = prioritization_score,
+    n = n_selected,
+    with_ties = FALSE
+  ) %>%
+  ungroup()
+
+message(
+  "Selected top ",
+  n_selected,
+  " MultiNicheNet interactions per direction."
+)
+
+print(
+  mn_selected %>%
+    dplyr::count(direction)
+)
+
+# ============================================================
 # 11. prioritization-score distribution
 # ============================================================
 
@@ -737,70 +787,50 @@ save_plot(
 )
 
 # ============================================================
-# 12. selected interactions by lineage pair
+# 12. all prioritized interactions by lineage pair
 # ============================================================
 
-n_selected <- min(
-  500L,
-  min(
-    table(mn_plot$direction)
-  )
-)
-
-mn_selected <- mn_plot %>%
-  group_by(direction) %>%
-  slice_max(
-    prioritization_score,
-    n = n_selected,
-    with_ties = FALSE
-  ) %>%
-  ungroup()
-
-pair_counts <- mn_selected %>%
+pair_counts <- mn_plot %>%
   dplyr::count(
     lineage_pair,
     direction,
     name = "n_interactions"
   ) %>%
-  group_by(lineage_pair) %>%
-  mutate(
+  dplyr::group_by(lineage_pair) %>%
+  dplyr::mutate(
     total = sum(n_interactions)
   ) %>%
-  ungroup() %>%
-  slice_max(
+  dplyr::ungroup() %>%
+  dplyr::slice_max(
     total,
     n = 25,
     with_ties = FALSE
   ) %>%
-  mutate(
-    lineage_pair = fct_reorder(
+  dplyr::mutate(
+    lineage_pair = forcats::fct_reorder(
       lineage_pair,
       total
     )
   )
 
-p_pair_counts <- ggplot(
+p_pair_counts <- ggplot2::ggplot(
   pair_counts,
-  aes(
+  ggplot2::aes(
     x = n_interactions,
     y = lineage_pair,
     fill = direction
   )
 ) +
-  geom_col() +
-  scale_fill_manual(
+  ggplot2::geom_col() +
+  ggplot2::scale_fill_manual(
     values = direction_colors
   ) +
-  theme_bw() +
-  labs(
+  ggplot2::theme_bw() +
+  ggplot2::labs(
     title = plot_title(
-      paste0(
-        "Top ",
-        n_selected,
-        " interactions per condition by lineage pair"
-      )
+      "Prioritized MultiNicheNet interactions by lineage pair"
     ),
-    x = "# selected interactions",
+    x = "# prioritized interactions",
     y = "Sender → receiver lineage",
     fill = "Direction"
   )
@@ -811,7 +841,6 @@ save_plot(
   width = 10,
   height = 8
 )
-
 # ============================================================
 # 13. net mean prioritization score
 # ============================================================

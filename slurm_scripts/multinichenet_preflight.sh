@@ -13,8 +13,9 @@ set -euo pipefail
 PROJECT_DIR="/nfs/home/students/i.kaciran/FoPra_PLAs"
 
 SCRIPT_DIR="${PROJECT_DIR}/src/cell_signaling/dccs"
+DATA_DIR="${PROJECT_DIR}/data/datasets"
+PREP_DIR="${DATA_DIR}/prepared_inputs"
 RESULTS_DIR="${PROJECT_DIR}/results/differential_ccs"
-PREP_DIR="${RESULTS_DIR}/prepared_inputs"
 PREFLIGHT_OUT_DIR="${RESULTS_DIR}/multinichetr_preflight"
 LOG_DIR="${PROJECT_DIR}/slurm_logs"
 
@@ -40,10 +41,7 @@ MODES=(
   "healthyOnly"
 )
 
-N_DATASETS=${#DATASETS[@]}
 N_MODES=${#MODES[@]}
-
-TOTAL_TASKS=$((N_DATASETS * N_MODES))
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 MODE_INDEX=$((TASK_ID % N_MODES))
@@ -51,9 +49,15 @@ DATASET_INDEX=$((TASK_ID / N_MODES))
 
 DATASET_BASE="${DATASETS[$DATASET_INDEX]}"
 MODE="${MODES[$MODE_INDEX]}"
-DATASET_NAME="${DATASET_BASE}_${MODE}"
 
-PREPARED_RDS="${PREP_DIR}/${DATASET_NAME}.rds"
+if [[ "${MODE}" == "all" ]]; then
+  DATASET_NAME="${DATASET_BASE}"
+  INPUT_RDS="${DATA_DIR}/${DATASET_BASE}.rds"
+else
+  DATASET_NAME="${DATASET_BASE}_${MODE}"
+  INPUT_RDS="${PREP_DIR}/${DATASET_NAME}.rds"
+fi
+
 DATASET_OUT_DIR="${PREFLIGHT_OUT_DIR}/${DATASET_NAME}"
 
 mkdir -p "${DATASET_OUT_DIR}"
@@ -63,22 +67,16 @@ echo "MULTINICHENET PREFLIGHT ARRAY TASK"
 echo "============================================================"
 echo "Date: $(date)"
 echo "Host: $(hostname)"
-echo "Working directory: $(pwd)"
 echo "SLURM job ID: ${SLURM_JOB_ID}"
 echo "SLURM array task ID: ${SLURM_ARRAY_TASK_ID}"
-echo "Dataset index: ${DATASET_INDEX}"
-echo "Mode index: ${MODE_INDEX}"
 echo "Dataset: ${DATASET_BASE}"
 echo "Mode: ${MODE}"
-echo "Dataset name: ${DATASET_NAME}"
-echo "Prepared RDS: ${PREPARED_RDS}"
-echo "Script: ${SCRIPT}"
+echo "Input RDS: ${INPUT_RDS}"
 echo "Output directory: ${DATASET_OUT_DIR}"
 echo "============================================================"
 
-if [[ ! -f "${PREPARED_RDS}" ]]; then
-  echo "ERROR: Missing prepared RDS: ${PREPARED_RDS}"
-  echo "Run prepare_cohort_inputs_slurm.sh first."
+if [[ ! -f "${INPUT_RDS}" ]]; then
+  echo "ERROR: Missing RDS: ${INPUT_RDS}"
   exit 1
 fi
 
@@ -92,38 +90,8 @@ if [[ ! -x "${R_BIN}" ]]; then
   exit 1
 fi
 
-echo "Checking R binary:"
-ls -lh "${R_BIN}"
-"${R_BIN}" --version
-
-echo "Checking preflight script:"
-ls -lh "${SCRIPT}"
-
-echo "Checking prepared RDS:"
-ls -lh "${PREPARED_RDS}"
-
-echo "Starting preflight command:"
-echo "${R_BIN} ${SCRIPT} ${PREPARED_RDS} ${DATASET_OUT_DIR}"
-echo "============================================================"
-
-set +e
-
 "${R_BIN}" "${SCRIPT}" \
-  "${PREPARED_RDS}" \
+  "${INPUT_RDS}" \
   "${DATASET_OUT_DIR}"
-
-EXIT_CODE=$?
-
-set -e
-
-echo "============================================================"
-echo "R preflight exit code: ${EXIT_CODE}"
-echo "Finished at: $(date)"
-echo "============================================================"
-
-if [[ "${EXIT_CODE}" -ne 0 ]]; then
-  echo "ERROR: Preflight failed for ${DATASET_NAME}"
-  exit "${EXIT_CODE}"
-fi
 
 echo "Finished preflight for ${DATASET_NAME}"

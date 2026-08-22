@@ -4,9 +4,8 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(dplyr)
   library(tidyr)
+  library(Matrix)
 })
-
-# Für welche Lineages existieren bei einem bestimmten min_cells mindestens zwei echte gepaarte PLA/platelet-free-Einheiten?
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -16,130 +15,93 @@ output_dir <- args[[2]]
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 obj <- readRDS(input_file)
-
 dataset_name <- tools::file_path_sans_ext(basename(input_file))
 
-if (grepl("ImmuneAging", dataset_name)) {
-  pair_col <- "donor_id"
-} else if (grepl("our_dataset", dataset_name)) {
-  pair_col <- "patient"
+sample_col <- if ("sample_ID" %in% colnames(obj@meta.data)) {
+  "sample_ID"
 } else {
-  pair_col <- "sample"
+  "sample"
 }
 
-if (!pair_col %in% colnames(obj@meta.data)) {
-  stop(
-    "Pairing column not found: ", pair_col,
-    "\nAvailable columns: ",
-    paste(colnames(obj@meta.data), collapse = ", ")
-  )
+pair_col <- if (grepl("ImmuneAging", dataset_name)) {
+  "donor_id"
+} else if (grepl("our_dataset|impact", dataset_name, ignore.case = TRUE)) {
+  "patient"
+} else {
+  "sample"
 }
 
-message("Using pairing column: ", pair_col)
+min_cells_values <- c(3, 5, 8, 10, 15, 20)
 
-candidate_min_cells <- c(3, 5, 8, 10, 15, 20)
-
-counts <- obj@meta.data %>%
-  filter(
-    !is.na(.data[[pair_col]]),
-    !is.na(pla_status),
-    !is.na(lineage)
-  ) %>%
-  count(
-    pair_id = .data[[pair_col]],
-    pla_status,
-    lineage,
-    name = "n_cells"
-  ) %>%
-  complete(
-    pair_id,
-    pla_status = c("PLA", "platelet-free"),
-    lineage,
-    fill = list(n_cells = 0)
+meta <- obj@meta.data %>%
+  mutate(
+    sample_id = as.character(.data[[sample_col]]),
+    pair_id = as.character(.data[[pair_col]]),
+    group = as.character(pla_status),
+    celltype = as.character(lineage)
   )
 
-  # pair_id pla_status lineage n_cells
-  # patient1 PLA Monocytes 45
-
-# ============================================================
-# dataset overview
-# ============================================================
-
-pairing_overview <- counts %>%
-  group_by(pair_id) %>%
+# 1. each sample must belong to exactly one group and pair
+sample_mapping <- meta %>%
+  distinct(sample_id, pair_id, group) %>%
+  group_by(sample_id) %>%
   summarise(
-    has_PLA = any(pla_status == "PLA" & n_cells > 0),
-    has_platelet_free = any(pla_status == "platelet-free" & n_cells > 0),
+    n_groups = n_distinct(group),
+    n_pairs = n_distinct(pair_id),
+    valid = n_groups == 1 & n_pairs == 1,
     .groups = "drop"
   )
 
-dataset_overview <- tibble(
-  dataset = dataset_name,
-  pairing_column = pair_col,
-  total_cells = ncol(obj),
-  total_pair_ids = n_distinct(counts$pair_id),
-  complete_pairs = sum(
-    pairing_overview$has_PLA &
-      pairing_overview$has_platelet_free
-  ),
-  PLA_only_ids = sum(
-    pairing_overview$has_PLA &
-      !pairing_overview$has_platelet_free
-  ),
-  platelet_free_only_ids = sum(
-    !pairing_overview$has_PLA &
-      pairing_overview$has_platelet_free
-  ),
-  total_lineages = n_distinct(counts$lineage)
-)
-
 write.csv(
-  dataset_overview,
-  file.path(output_dir, "dataset_overview.csv"),
+  sample_mapping,
+  file.path(output_dir, "sample_mapping.csv"),
   row.names = FALSE
 )
 
-# ============================================================
-# pairing overview by lineage
-# ============================================================
+# 2. check raw counts and pseudobulk library sizes
+counts <- GetAssayData(obj, assay = "RNA", layer = "counts")
+cell_libsize <- Matrix::colSums(counts)
 
-pairing_by_lineage <- counts %>%
-  mutate(present = n_cells > 0) %>%
-  select(pair_id, lineage, pla_status, present) %>%
+pb <- meta %>%
+  mutate(cell_libsize = cell_libsize[rownames(meta)]) %>%
+  group_by(sample_id, pair_id, group, celltype) %>%
+  summarise(
+    n_cells = n(),
+    library_size = sum(cell_libsize),
+    .groups = "drop"
+  )
+
+write.csv(
+  pb,
+  file.path(output_dir, "sample_celltype_counts.csv"),
+  row.names = FALSE
+)
+
+# 3. actual MultiNicheNet-style eligibility
+preflight <- pb %>%
+  crossing(min_cells = min_cells_values) %>%
+  mutate(
+    usable = n_cells > min_cells &
+      library_size > 0
+  ) %>%
+  filter(usable) %>%
+  distinct(min_cells, celltype, pair_id, group) %>%
+  mutate(present = TRUE) %>%
+  complete(
+    min_cells,
+    celltype,
+    pair_id,
+    group = c("PLA", "platelet-free"),
+    fill = list(present = FALSE)
+  ) %>%
   pivot_wider(
-    names_from = pla_status,
+    names_from = group,
     values_from = present,
     values_fill = FALSE
   ) %>%
-  group_by(lineage) %>%
+  group_by(min_cells, celltype) %>%
   summarise(
-    PLA_ids = sum(PLA),
-    platelet_free_ids = sum(`platelet-free`),
-    complete_pairs = sum(PLA & `platelet-free`),
-    .groups = "drop"
-  )
-
-write.csv(
-  pairing_by_lineage,
-  file.path(output_dir, "pairing_by_lineage.csv"),
-  row.names = FALSE
-)
-
-preflight <- counts %>%
-  crossing(min_cells = candidate_min_cells) %>%
-  mutate(usable = n_cells > min_cells) %>%
-  select(pair_id, lineage, pla_status, min_cells, usable) %>%
-  pivot_wider(
-    names_from = pla_status,
-    values_from = usable,
-    values_fill = FALSE
-  ) %>%
-  mutate(
-    complete_pair = PLA & `platelet-free`
-  ) %>%
-  group_by(min_cells, lineage) %>%
-  summarise(
-    n_complete_pairs = sum(complete_pair),
+    n_complete_pairs = sum(PLA & `platelet-free`),
     eligible = n_complete_pairs >= 2,
     .groups = "drop"
   )
@@ -153,8 +115,10 @@ write.csv(
 summary <- preflight %>%
   group_by(min_cells) %>%
   summarise(
-    n_eligible_lineages = sum(eligible),
-    eligible_lineages = paste(lineage[eligible], collapse = "; "),
+    eligible_lineages = paste(
+      celltype[eligible],
+      collapse = "; "
+    ),
     .groups = "drop"
   )
 
@@ -165,3 +129,11 @@ write.csv(
 )
 
 print(summary)
+
+cat(
+  "\nInvalid sample mappings:",
+  sum(!sample_mapping$valid),
+  "\nZero pseudobulk libraries:",
+  sum(pb$library_size == 0),
+  "\n"
+)

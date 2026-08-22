@@ -1511,19 +1511,23 @@ plot_circos <- function(
   chordDiagram(
     links,
     order = sector_order,
+    grid.border = "grey35",
     grid.col = node_colors,
     col = node_colors[links$from],
-    transparency = 0.15,
+    transparency = 0.10,
     directional = 1,
     direction.type = c(
       "arrows",
       "diffHeight"
     ),
     diffHeight = -0.03,
-    link.arr.type = "big.arrow",
+    link.arr.type = "triangle",
     link.sort = TRUE,
     link.decreasing = TRUE,
-    link.border = NA,
+    link.border = adjustcolor(
+      "grey35",
+      alpha.f = 0.55
+    ),
     annotationTrack = "grid",
     preAllocateTracks = list(
       track.height = 0.16
