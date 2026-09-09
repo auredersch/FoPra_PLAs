@@ -10,12 +10,12 @@ project_root <- "/nfs/home/students/f.mathis/FoPra_PLAs"
 
 args <- commandArgs(trailingOnly = TRUE)
 METHOD_NAME    <- if(length(args) >= 1) args[1] else "AUCell"
-SIG_NAME       <- if(length(args) >= 2) args[2] else "MANNE_DN"
-SIG_FILE_BASE  <- if(length(args) >= 3) args[3] else "MANNE_COVID19_COMBINED_COHORT_VS_HEALTHY_DONOR_PLATELETS_DN.v2025.1.Hs"
+SIG_NAME       <- if(length(args) >= 2) args[2] else "GOBP_REG"
+SIG_FILE_BASE  <- if(length(args) >= 3) args[3] else "GOBP_REGULATION_OF_PLATELET_ACTIVATION.v2025.1.Hs.csv"
 USE_EXTENSION  <- if(length(args) >= 4) as.logical(args[4]) else FALSE
 THRESH_MODE    <- if(length(args) >= 5) args[5] else "gmm_dist_dual" 
-CURRENT_FILE   <- if(length(args) >= 6) args[6] else "/nfs/home/students/f.mathis/FoPra_PLAs/data/stemi" 
-SAVE_RDS       <- if(length(args) >= 7) as.logical(args[7]) else FALSE
+CURRENT_FILE   <- if(length(args) >= 6) args[6] else "/nfs/home/students/f.mathis/FoPra_PLAs/data/stemi_raw" 
+SAVE_RDS       <- if(length(args) >= 7) as.logical(args[7]) else TRUE
 THRESH_SCOPE   <- if(length(args) >= 8) args[8] else "global"       # "global" oder "per_celltype"
 
 set.seed(42)
@@ -73,8 +73,7 @@ pbmc <- CreateSeuratObject(
   meta.data = metadata
 )
 
-
-pbmc$celltype_clean <- "cell_type"
+pbmc$celltype_clean <- "cell_type_lowerres"
 
 # --- GENLISTE LADEN ---
 source(file.path(project_root, "src", "benchmarking", "read_and_extend_gene_list.R"))
