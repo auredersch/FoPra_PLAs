@@ -1,6 +1,3 @@
-# -------------------------------------------------------------------
-# Benchmarking_Master_v5_MultiCohort.R - FINAL GROUND TRUTH SELECTOR WITH QC
-# -------------------------------------------------------------------
 start_time <- Sys.time() 
 
 library(Seurat)
@@ -23,11 +20,10 @@ USE_EXTENSION  <- if(length(args) >= 4) as.logical(args[4]) else FALSE
 THRESH_MODE    <- if(length(args) >= 5) args[5] else "gmm_dist_dual" 
 CURRENT_FILE   <- if(length(args) >= 6) args[6] else "sepsis_qc_strict_automated_gating.rds" 
 GT_SOURCE      <- if(length(args) >= 7) args[7] else "biologist"    # other: "gmm_dual" "gmm_single"
-# Standardmaessig FALSE: RDS-Objekte werden nur fuer Kombinationen gebraucht, die per
-# deep_analysis.R untersucht werden sollen (siehe Kommentar bei der Speicherung weiter
-# unten) - fuer die grosse Heatmap-Matrix reicht die Metrics-CSV. Explizit auf TRUE
-# setzen fuer die paar Kombinationen, die ihr wirklich deep-analysen wollt.
 SAVE_RDS       <- if(length(args) >= 8) as.logical(args[8]) else FALSE
+THRESH_SCOPE   <- if(length(args) >= 9) args[9] else "global"       # "global" oder "per_celltype"
+
+set.seed(42)
 
 get_dataset_short <- function(filename) {
   if (grepl("heart", filename, ignore.case = TRUE)) return("heart")
@@ -46,10 +42,20 @@ EXTRACTED_MODE <- case_when(
   TRUE ~ "raw"
 )
 
+
 DATASET_SHORT <- get_dataset_short(CURRENT_FILE)
 if(DATASET_SHORT == "unknown") stop("Fehler: Datensatz-Kürzel konnte nicht ermittelt werden!")
 
-INPUT_DIR   <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
+if (EXTRACTED_MODE == "raw") {
+  INPUT_DIR <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
+} else if (EXTRACTED_MODE == "qc_strict") {
+  INPUT_DIR <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated_postQC/"
+}
+print(INPUT_DIR)
+
+#INPUT_DIR   <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
+#INPUT_DIR   <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated_postQC/"
+print(INPUT_DIR)
 PATH_DATA   <- file.path(INPUT_DIR, CURRENT_FILE)
 
 RDS_OUT_DIR <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets/benchmarked_objects"
@@ -58,7 +64,7 @@ OUT_DIR <- file.path(
   PLOT_BASE, 
   DATASET_SHORT, 
   EXTRACTED_MODE, 
-  paste0(METHOD_NAME, "_Ext", USE_EXTENSION, "_", THRESH_MODE, "_GT_", GT_SOURCE),
+  paste0(METHOD_NAME, "_Ext", USE_EXTENSION, "_", THRESH_MODE, "_Scope", THRESH_SCOPE, "_GT_", GT_SOURCE),
   SIG_NAME, 
   "/"
 )
@@ -82,10 +88,10 @@ if(!"celltype.l3" %in% colnames(pbmc@meta.data)) {
 }
 
 # --- QC-FILTERUNG ---
-QC_BASE <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/sample_qc/"
+QC_BASE <- "/nfs/home/students/f.mathis/Dataset_PostQC/"
 
 if (EXTRACTED_MODE != "raw") {
-  qc_table_file <- file.path(QC_BASE, DATASET_SHORT, "19_final_sample_lineage_QC_table.csv")
+  qc_table_file <- file.path(QC_BASE, paste0(DATASET_SHORT, ".csv"))
   
   if (file.exists(qc_table_file)) {
     print(paste("-> Filtere Zellen für Benchmarking basierend auf Modus:", EXTRACTED_MODE))
@@ -100,16 +106,31 @@ if (EXTRACTED_MODE != "raw") {
                                         "sample_ADT_suspicious", "lineage_ADT_suspicious"))
     }
     
-    actual_sample_col <- case_when(
-      "donor_id" %in% colnames(pbmc@meta.data) ~ "donor_id",
-      "sample_id" %in% colnames(pbmc@meta.data) ~ "sample_id",
-      TRUE ~ "sample"
-    )
+    candidate_cols <- grep("sample|donor", colnames(pbmc@meta.data), value = TRUE, ignore.case = TRUE)
+
+    if (length(candidate_cols) == 0) {
+      stop(paste0("Kritischer Fehler: Keine Spalte mit 'sample' oder 'donor' im Namen ",
+                  "in '", dataset_type, "' gefunden. Verfuegbare Spalten: ",
+                  paste(colnames(pbmc@meta.data), collapse = ", ")))
+    }
+
+    match_counts <- vapply(candidate_cols, function(col) {
+      length(intersect(unique(as.character(pbmc@meta.data[[col]])), trusted_pairs$sample_id))
+    }, FUN.VALUE = integer(1))
+
+    actual_sample_col <- candidate_cols[which.max(match_counts)]
+    print(paste("-> Sample-ID-Spalte automatisch gewaehlt:", actual_sample_col,
+                "(", max(match_counts), "uebereinstimmende Sample-IDs von",
+                length(unique(trusted_pairs$sample_id)), "in der QC-Tabelle, geprueft gegen:",
+                paste(candidate_cols, collapse=", "), ")"))
+    if (max(match_counts) == 0) {
+      warning("Keine der gefundenen Sample/Donor-Spalten hat Overlap mit trusted_pairs$sample_id!")
+    }
     
     pbmc$csv_celltype_name <- case_when(
-      pbmc$celltype_clean == "CD4 T" ~ "CD4 T cells",
-      pbmc$celltype_clean == "CD8 T cells" ~ "CD8 T cells",
-      TRUE ~ pbmc$celltype_clean
+      as.character(pbmc$celltype_clean) == "CD4 T" ~ "CD4 T cells",
+      as.character(pbmc$celltype_clean) == "CD8 T cells" ~ "CD8 T cells",
+      TRUE ~ as.character(pbmc$celltype_clean)
     )
     
     pbmc$match_key <- paste0(pbmc@meta.data[[actual_sample_col]], "_", pbmc$csv_celltype_name)
@@ -173,15 +194,11 @@ overlap_frac <- length(gene_overlap) / length(genes)
 print(paste("Gen-Overlap Signatur <-> RNA-Assay:", length(gene_overlap), "von", length(genes), "Genen",
             "(", round(100 * overlap_frac, 1), "% )"))
 
-# FIX: Der alte Check (< 10 absolute Gene) konnte zwei ganz unterschiedliche Faelle
-# nicht unterscheiden: (a) echter Gen-ID-Mismatch (Symbol vs. Ensembl) - erkennbar an
-# einer NIEDRIGEN Ueberlappungsquote, selbst bei grosser Signatur, und (b) eine von
-# Natur aus KLEINE, aber korrekt gematchte Signatur (z.B. HP_ABNORMAL_PLATELET_
-# MEMBRANE_PROTEIN_EXPRESSION mit nur 6 Genen total, davon 6/6 = 100% gematcht). Fall
-# (b) wurde bisher faelschlich als "kritischer ID-Mismatch-Fehler" abgebrochen, obwohl
-# der Gen-Abgleich technisch perfekt funktioniert hat - nur die Signatur ist klein.
-MIN_ABSOLUTE_GENES   <- 3    # AUCell-Ranking wird bei extrem wenigen Genen wenig aussagekraeftig
-MIN_OVERLAP_FRACTION <- 0.5  # deutlich niedrigere Quote deutet auf ID-Mismatch hin
+
+MIN_ABSOLUTE_GENES   <- 3
+#MIN_ABSOLUTE_GENES   <- 1    
+MIN_OVERLAP_FRACTION <- 0.5  
+#MIN_OVERLAP_FRACTION <- 0.25 
 
 if (length(gene_overlap) < MIN_ABSOLUTE_GENES) {
   stop(paste("Kritischer Fehler: Nur", length(gene_overlap), "Gene matchen - unter der",
@@ -197,9 +214,7 @@ if (length(gene_overlap) < MIN_ABSOLUTE_GENES) {
 } else if (length(gene_overlap) < 10) {
   warning(paste0("Nur ", length(gene_overlap), " Gene matchen, ABER das sind ", round(100 * overlap_frac, 1),
                  "% der gesamten Signatur (", length(genes), " Gene total) - kein ID-Mismatch, sondern eine ",
-                 "von Natur aus kleine Signatur. AUCell-Scores auf so wenigen Genen koennen verrauschter/",
-                 "instabiler sein als bei groesseren Signaturen (z.B. UNION_ALL) - das beim Vergleich in ",
-                 "der Heatmap im Hinterkopf behalten, nicht direkt 1:1 mit grossen Signaturen vergleichen."))
+                 "von Natur aus kleine Signatur."))
 }
 
 # --- IMMUNE CONFIG ---
@@ -282,7 +297,6 @@ if (n_na_z > 0) {
   warning(paste("-> WARNUNG:", n_na_z, "Zellen haben NA als Z_Score und werden ignoriert."))
 }
 
-# --- GROUND TRUTH RESPONSE ---
 pbmc$GT_Response <- ifelse(pbmc[[GT_COLUMN]] == POSITIVE_VAL, 1, 0)
 
 # --- ROC & AU-PR ---
@@ -365,7 +379,7 @@ if (THRESH_MODE == "youden") {
             pred <- (pbmc$Z_Score > tz) & (pbmc$Immune_Z > ti)
             tp <- sum(pred & pbmc$GT_Response == 1); fp <- sum(pred & pbmc$GT_Response == 0)
             fn <- sum(!pred & pbmc$GT_Response == 1)
-            prec_t <- if((tp+fp) > 0) tp/(tp+fp) else 0
+            prec_t <- if((tp+fp) > 0) tp(tp+fp) else 0
             rec_t  <- if((tp+fn) > 0) tp/(tp+fn) else 0
             f1_t   <- if((prec_t+rec_t) > 0) 2*(prec_t*rec_t)/(prec_t+rec_t) else 0
             if(!is.na(f1_t) && f1_t > best_f1) {
@@ -375,24 +389,99 @@ if (THRESH_MODE == "youden") {
     }
 
 } else if (THRESH_MODE %in% c("gmm_dist_platelet", "gmm_dist_dual")) {
-    auc_obs <- pbmc$Raw_Score
-    auc_imm <- pbmc$Immune_Score
 
-    fit_plat <- Mclust(auc_obs, G = 2)
+  pbmc$Platelet_High <- FALSE
+  pbmc$Immune_High   <- FALSE
+
+  fit_gmm_pair <- function(values) {
+    tryCatch(Mclust(values, G = 2), error = function(e) NULL)
+  }
+
+  if (THRESH_SCOPE == "global") {
+    fit_plat <- fit_gmm_pair(pbmc$Raw_Score)
+    if (is.null(fit_plat)) stop("Mclust (Platelet, global) fehlgeschlagen!")
     plat_high <- which.max(fit_plat$parameters$mean)
     pbmc$Platelet_High <- fit_plat$classification == plat_high
-    pbmc$Immune_High <- TRUE
 
-    if(THRESH_MODE == "gmm_dist_dual") {
-        idx <- which(pbmc$Platelet_High)
-        fit_imm <- Mclust(auc_imm[idx], G = 2)
+    if (THRESH_MODE == "gmm_dist_dual") {
+      idx <- which(pbmc$Platelet_High)
+      fit_imm <- fit_gmm_pair(pbmc$Immune_Score[idx])
+      if (!is.null(fit_imm)) {
         imm_high <- which.max(fit_imm$parameters$mean)
-        pbmc$Immune_High <- FALSE
         pbmc$Immune_High[idx] <- fit_imm$classification == imm_high
-        THRESHOLD_I <- min(pbmc$Immune_Z[pbmc$Immune_High], na.rm = TRUE)
+      }
+    } else {
+      pbmc$Immune_High <- TRUE
     }
-    THRESHOLD_Z <- min(pbmc$Z_Score[pbmc$Platelet_High], na.rm = TRUE)
 
+    THRESHOLD_Z <- min(pbmc$Z_Score[pbmc$Platelet_High], na.rm = TRUE)
+    THRESHOLD_I <- if (THRESH_MODE == "gmm_dist_dual") {
+      min(pbmc$Immune_Z[pbmc$Immune_High], na.rm = TRUE)
+    } else { -Inf }
+
+    # Für metrics tabelle: globaler Threshold, Anzahl Zellen insgesamt
+    threshold_summary <- data.frame(celltype_clean = "GLOBAL",
+                                     Threshold_Z = THRESHOLD_Z,
+                                     Threshold_I = THRESHOLD_I,
+                                     n_cells = ncol(pbmc))
+
+  } else if (THRESH_SCOPE == "per_celltype") {
+    MIN_N_PER_CELLTYPE <- 100   
+    threshold_rows <- list()
+
+    for (ct in unique(na.omit(pbmc$celltype_clean))) {
+      idx_ct <- which(pbmc$celltype_clean == ct)
+      if (length(idx_ct) < MIN_N_PER_CELLTYPE) {
+        warning(paste0("Zelltyp '", ct, "' hat nur ", length(idx_ct),
+                        " Zellen (< ", MIN_N_PER_CELLTYPE, ") - Threshold-Fit übersprungen, ",
+                        "Zellen bleiben Platelet_High=FALSE."))
+        next
+      }
+
+      fit_plat <- fit_gmm_pair(pbmc$Raw_Score[idx_ct])
+      if (is.null(fit_plat)) {
+        warning(paste0("Mclust (Platelet) fehlgeschlagen für Zelltyp '", ct, "' - übersprungen."))
+        next
+      }
+      plat_high <- which.max(fit_plat$parameters$mean)
+      plat_high_idx <- idx_ct[fit_plat$classification == plat_high]
+      pbmc$Platelet_High[plat_high_idx] <- TRUE
+      thresh_z_ct <- min(pbmc$Z_Score[plat_high_idx], na.rm = TRUE)
+
+      thresh_i_ct <- -Inf
+      if (THRESH_MODE == "gmm_dist_dual" && length(plat_high_idx) >= MIN_N_PER_CELLTYPE) {
+        fit_imm <- fit_gmm_pair(pbmc$Immune_Score[plat_high_idx])
+        if (!is.null(fit_imm)) {
+          imm_high <- which.max(fit_imm$parameters$mean)
+          imm_high_idx <- plat_high_idx[fit_imm$classification == imm_high]
+          pbmc$Immune_High[imm_high_idx] <- TRUE
+          thresh_i_ct <- min(pbmc$Immune_Z[imm_high_idx], na.rm = TRUE)
+        }
+      } else if (THRESH_MODE == "gmm_dist_platelet") {
+        pbmc$Immune_High[idx_ct] <- TRUE
+      }
+
+      threshold_rows[[ct]] <- data.frame(celltype_clean = ct,
+                                          Threshold_Z = thresh_z_ct,
+                                          Threshold_I = thresh_i_ct,
+                                          n_cells = length(idx_ct))
+    }
+
+    threshold_summary <- bind_rows(threshold_rows)
+
+    THRESHOLD_Z <- median(threshold_summary$Threshold_Z, na.rm = TRUE)
+    THRESHOLD_I <- median(threshold_summary$Threshold_I[is.finite(threshold_summary$Threshold_I)], na.rm = TRUE)
+
+  } else {
+    stop(paste("Ungueltiger THRESH_SCOPE:", THRESH_SCOPE, "- erlaubt: 'global', 'per_celltype'"))
+  }
+
+  THRESH_OUT_DIR <- file.path(project_root, "results/benchmarking/thresholds")
+  dir.create(THRESH_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+  write.csv(threshold_summary,
+            file.path(THRESH_OUT_DIR, paste0("thresholds_", DATASET_SHORT, "_", SIG_NAME, "_",
+                                              THRESH_MODE, "_", THRESH_SCOPE, "_GT_", GT_SOURCE, ".csv")),
+            row.names = FALSE)
 } else if (THRESH_MODE == "kmeans") {
     set.seed(42)
     km_data <- FetchData(pbmc, vars = c("Z_Score", "Immune_Z")) %>% drop_na()
@@ -441,16 +530,6 @@ pbmc$Error_Type <- case_when(
     TRUE ~ NA_character_
 )
 
-# --- METRIKEN SCHREIBEN (inkl. AU-PR) ---
-# WICHTIG (nach Fehleranalyse): Dieser Block steht jetzt VOR der RDS-Speicherung,
-# nicht mehr danach. Grund: saveRDS() ist der mit Abstand fehleranfaelligste und
-# teuerste Schritt (grosse Datei, NFS-Schreiblast bei vielen parallelen Array-Jobs).
-# Vorher fuehrte ein Schreibfehler bei saveRDS() (z.B. "error writing to connection")
-# zu einem sofortigen Skriptabbruch ("Execution halted") - und damit gingen auch die
-# laengst berechneten Metriken (F1/Prec/Rec/SRI/AUROC/AUPR) verloren, obwohl die gar
-# nichts mit dem RDS-Schreibfehler zu tun hatten. Jetzt werden die Metriken zuerst
-# gesichert, damit ein RDS-Problem hoechstens den RDS-Export betrifft, nicht den
-# gesamten Benchmarking-Lauf.
 runtime_min <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
 tp <- sum(pbmc$Error_Type == "TP", na.rm = TRUE)
 fp <- sum(pbmc$Error_Type == "FP", na.rm = TRUE)
@@ -461,12 +540,7 @@ prec <- if((tp + fp) > 0) tp / (tp + fp) else 0
 rec  <- if((tp + fn) > 0) tp / (tp + fn) else 0
 f1   <- if((prec + rec) > 0) 2 * prec * rec / (prec + rec) else 0
 
-# --- NEUE METRIK: Signal-weighted Recall (Spaltenname bleibt "SRI") ---
-# Gewichteter Recall: statt jede echte PLA-Zelle binaer (gefunden ja/nein) gleich zu
-# zaehlen, wird sie mit ihrem eigenen Raw_Score gewichtet. Eine stark positive,
-# knapp verpasste PLA "kostet" damit mehr als eine schwach positive, knapp verpasste.
-# WICHTIG: Raw_Score (immer >= 0), NICHT Z_Score - Z_Score kann negativ sein
-# (Zellen unter dem Mittelwert), was Zaehler/Nenner unsinnig machen wuerde.
+# --- Neue Metrik: Signal-weighted Recall ("SRI") ---
 gt_positive_mask <- pbmc$Error_Type %in% c("TP", "FN")
 detected_mask     <- pbmc$Error_Type == "TP"
 
@@ -480,12 +554,11 @@ if (is.na(sri)) {
   warning("SRI konnte nicht berechnet werden (keine GT-positiven Zellen mit Raw_Score > 0 vorhanden).")
 }
 
-# Prevalence als Baseline für AU-PR Interpretation
 prevalence <- mean(pbmc$GT_Response, na.rm = TRUE)
 
 METRICS_FILE <- file.path(project_root, "results/benchmarking/metrics",
   paste0("metrics_", DATASET_SHORT, "_", METHOD_NAME, "_", SIG_NAME, "_",
-         THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"))
+         THRESH_MODE, "_Scope", THRESH_SCOPE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"))
 
 write.csv(data.frame(
     Dataset        = DATASET_SHORT,
@@ -495,7 +568,7 @@ write.csv(data.frame(
     Filter_Mode    = EXTRACTED_MODE,
     GT_Source      = GT_SOURCE,
     Threshold_Mode = THRESH_MODE,
-    # Ranking-Metriken (schwellenwertfrei)
+    Threshold_Scope = THRESH_SCOPE,
     AUROC          = as.numeric(auc(roc_obj)),
     AUPR           = AUPR,                       
     Prevalence     = prevalence,                 
@@ -528,8 +601,8 @@ print(paste("-> Metriken gespeichert:", METRICS_FILE))
 # Analysis untersucht werden sollen.
 if (SAVE_RDS) {
   RDS_FILE_NAME <- file.path(RDS_OUT_DIR,
-    paste0("pbmc_benchmarked_", DATASET_SHORT, "_", METHOD_NAME, "_", SIG_NAME, "_",
-           THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".rds"))
+  paste0("pbmc_benchmarked_", DATASET_SHORT, "_", METHOD_NAME, "_", SIG_NAME, "_",
+         THRESH_MODE, "_Scope", THRESH_SCOPE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".rds"))
   message("Speichere Seurat-Objekt unter: ", RDS_FILE_NAME)
 
   save_result <- tryCatch({
@@ -545,10 +618,6 @@ if (SAVE_RDS) {
   })
 
   if (!save_result) {
-    # Bewusst KEIN stop()/quit(status=1) hier - der Lauf war inhaltlich erfolgreich
-    # (Metriken vorhanden), nur der optionale RDS-Export ist fehlgeschlagen. Ein
-    # Nicht-Null-Exit-Code wuerde im Slurm-Array-Log als "FEHLER" markiert werden,
-    # obwohl die fuer die Heatmap relevanten Daten vollstaendig sind.
     message("-> Lauf wird als erfolgreich gewertet (Metriken vollstaendig), RDS-Export übersprungen.")
   }
 } else {
@@ -580,7 +649,7 @@ ct_data <- pbmc@meta.data %>%
 
 CT_FILE <- file.path(project_root, "results/benchmarking/celltype_data",
   paste0("ct_", DATASET_SHORT, "_", METHOD_NAME, "_", SIG_NAME, "_",
-         THRESH_MODE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"))
+         THRESH_MODE, "_Scope", THRESH_SCOPE, "_", EXTRACTED_MODE, "_GT_", GT_SOURCE, ".csv"))
 
 write.csv(ct_data, CT_FILE, row.names = FALSE)
 
@@ -643,16 +712,18 @@ print(
 )
 dev.off()
 
+subtitle_text <- if (THRESH_SCOPE == "per_celltype") {
+                    paste("Median Threshold Z (pro Zelltyp, siehe thresholds_*.csv):", round(THRESHOLD_Z, 2), "| F1:", round(f1,3))
+                } else {
+                    paste("Threshold Z:", round(THRESHOLD_Z, 2), "| F1:", round(f1,3))
+                }
 png(paste0(OUT_DIR, "4a_Density_ZScore_PLA_Status.png"), 1200, 800)
 print(ggplot(pbmc@meta.data, aes(x = Z_Score, fill = !!sym(GT_COLUMN))) +
       geom_density(alpha = 0.5) + theme_minimal() +
       scale_fill_manual(values = c("PLA" = "#FF4B4B", "platelet-free" = "#4B8BFF")) +
       geom_vline(xintercept = THRESHOLD_Z, linetype = "dashed", color = "red", size = 1) +
-      labs(title = "Global Z-Score Distribution",
-           subtitle = paste("Threshold Z:", round(THRESHOLD_Z, 2),
-                            "| F1:", round(f1, 3),
-                            "| AUROC:", round(as.numeric(auc(roc_obj)), 3),
-                            "| AUPR:", round(AUPR, 3)),
+      labs(title = "Global Z-Score Distribution",       
+           subtitle = subtitle_text,
            x = "Z-Score", fill = "PLA Status"))
 dev.off()
 

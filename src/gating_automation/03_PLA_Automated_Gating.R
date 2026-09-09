@@ -13,28 +13,49 @@ args <- commandArgs(trailingOnly = TRUE)
 CURRENT_FILE <- if(length(args) >= 1) args[1] else "gated_sepsis_processed.rds"
 FILTER_MODE  <- if(length(args) >= 2) args[2] else "raw" # Optionen: "raw", "qc_tolerant", "qc_strict"
 
-#INPUT_DIR   <- "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets/"
-INPUT_DIR   <-  "/nfs/home/students/a.dersch/data"
-OUTPUT_DIR  <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated/"
-BASE_PLOT   <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/gating_automation/"
-QC_BASE     <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/sample_qc/"
+INPUT_DIR   <- "/nfs/home/students/f.mathis/Dataset_PostQC/"
+#INPUT_DIR   <-  "/nfs/home/students/a.dersch/data"
+OUTPUT_DIR  <- "/nfs/home/students/a.dersch/FoPra_PLAs/data/datasets_automated_postQC/"
+BASE_PLOT   <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/gating_automation_postQC/"
+QC_BASE     <- "/nfs/home/students/f.mathis/Dataset_PostQC/"
 
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # --- DATASET MAPPING ---
+#datasets_map = list(
+#  "gated_heart_processed.rds"        = "heart",
+#  "gated_sepsis_processed.rds"       = "sepsis",
+#  "gated_vaccine_processed.rds"      = "vaccine",
+#  "gated_ImmuneAging.rds"            = "immune_aging",
+#  "gated_our_dataset_processed.rds"  = "impact",
+#  "gated_skin_processed.rds"          = "skin"
+#)
+
 datasets_map = list(
-  "gated_heart_processed.rds"        = "heart",
-  "gated_sepsis_processed.rds"       = "sepsis",
-  "gated_vaccine_processed.rds"      = "vaccine",
-  "gated_ImmuneAging.rds"            = "immune_aging",
-  "gated_our_dataset_processed.rds"  = "impact"
-  "gated_skin_processed.rds"          = "skin"
+  "heart.rds"        = "heart",
+  "sepsis.rds"       = "sepsis",
+  "vaccine.rds"      = "vaccine",
+  "immune_aging.rds" = "immune_aging",
+  "impact.rds"       = "impact",
+  "skin.rds"         = "skin"
 )
 
 dataset_type <- datasets_map[[CURRENT_FILE]]
 if(is.null(dataset_type)) stop("Fehler: Datensatz-Dateiname nicht in datasets_map gefunden!")
 
-all_lineages <- c("B cells", "DCs", "NK cells", "Unassigned", "CD4 T", "Macrophages", "Neutrophils", "CD8 T cells")
+#all_lineages <- c("B cells", "DCs", "NK cells", "Unassigned", "CD4 T", "Macrophages", "Neutrophils", "CD8 T cells")
+
+lineage_aliases <- list(
+  "B cells"     = c("B cells"),
+  "DCs"         = c("DCs"),
+  "NK cells"    = c("NK cells"),
+  "Unassigned"  = c("Unassigned"),
+  "CD4 T cells" = c("CD4 T cells", "CD4 T"),
+  "CD8 T cells" = c("CD8 T cells"),
+  "Monocytes"   = c("Monocytes"),
+  "Macrophages" = c("Macrophages"),
+  "Neutrophils" = c("Neutrophils", "neutrophils")
+)
 
 marker_aliases <- list(
   CD41  = c("CD41", "ITGA2B.1", "ITGA2B", "GPIIB"),
@@ -57,15 +78,26 @@ print(paste("====================================================="))
 
 seurat_obj <- readRDS(file.path(INPUT_DIR, CURRENT_FILE))
 
-if (dataset_type == "immune_aging") {
-  if ("ADT_corrected" %in% Assays(seurat_obj)) {
-    DefaultAssay(seurat_obj) <- "ADT_corrected"
-    print("-> [Immune Aging] Nutze ADT_corrected für das GMM-Gating.")
-  } else {
-    warning("-> Warnung: ADT_corrected nicht gefunden, weiche auf ADT aus.")
-    DefaultAssay(seurat_obj) <- "ADT"
-  }
+handled_lineages <- unlist(lineage_aliases)
+unhandled <- setdiff(unique(na.omit(seurat_obj$lineage)), handled_lineages)
+if (length(unhandled) > 0) {
+  warning(paste("Nicht gegatete Lineage-Level gefunden:", paste(unhandled, collapse = ", ")))
+}
+
+adtnorm_assay_name <- paste0("ADT_ADTnorm_", dataset_type)
+
+if (adtnorm_assay_name %in% Assays(seurat_obj)) {
+  DefaultAssay(seurat_obj) <- adtnorm_assay_name
+  print(paste("-> Nutze ADTNorm-korrigierten Assay:", adtnorm_assay_name))
+} else if ("ADT_corrected" %in% Assays(seurat_obj)) {
+  DefaultAssay(seurat_obj) <- "ADT_corrected"
+  print("-> Nutze 'ADT_corrected' (Fallback, alte immune_aging-Konvention).")
 } else {
+  warning(paste0("-> WARNUNG: Kein ADTNorm-korrigierter Assay gefunden fuer '", dataset_type,
+                  "' (erwartet: '", adtnorm_assay_name, "' oder 'ADT_corrected'). ",
+                  "Verfuegbare Assays: ", paste(Assays(seurat_obj), collapse = ", "),
+                  ". Falle zurueck auf UNKORRIGIERTEN 'ADT'-Assay - Ergebnisse ggf. ",
+                  "nicht vergleichbar mit ADTNorm-korrigierten Kohorten!"))
   DefaultAssay(seurat_obj) <- "ADT"
 }
 
@@ -100,7 +132,8 @@ if (!is.null(cd61_name)) {
 trusted_pairs <- NULL
 
 if (FILTER_MODE != "raw") {
-  qc_table_file <- file.path(QC_BASE, dataset_type, "19_final_sample_lineage_QC_table.csv")
+  #qc_table_file <- file.path(QC_BASE, dataset_type, "19_final_sample_lineage_QC_table.csv")
+  qc_table_file <- file.path(QC_BASE, paste0(dataset_type, ".csv"))
   
   if (file.exists(qc_table_file)) {
     print(paste("-> Integriere Proben-QC-Tabelle im Modus:", FILTER_MODE))
@@ -160,29 +193,43 @@ get_gmm_threshold <- function(gmm_fit) {
   return(thresh)
 }
 
-# Gating
-for (lineage_name in all_lineages) {
+actual_sample_col <- NULL
+if (!is.null(trusted_pairs)) {
+  candidate_cols <- grep("sample|donor", colnames(seurat_obj@meta.data), value = TRUE, ignore.case = TRUE)
 
-  csv_lineage_name <- case_when(
-    lineage_name == "CD4 T" ~ "CD4 T cells",
-    lineage_name == "CD8 T cells" ~ "CD8 T cells",
-    TRUE ~ lineage_name
-  )
-  
-  if (!(lineage_name %in% seurat_obj$lineage)) next
-  
-  Zellen_im_Zelltyp <- which(seurat_obj$lineage == lineage_name)
-  if (length(Zellen_im_Zelltyp) < 50) next
+  if (length(candidate_cols) == 0) {
+    stop(paste0("Kritischer Fehler: Keine Spalte mit 'sample' oder 'donor' im Namen ",
+                "in '", dataset_type, "' gefunden. Verfuegbare Spalten: ",
+                paste(colnames(seurat_obj@meta.data), collapse = ", ")))
+  }
+
+  match_counts <- vapply(candidate_cols, function(col) {
+    length(intersect(unique(as.character(seurat_obj@meta.data[[col]])), trusted_pairs$sample_id))
+  }, FUN.VALUE = integer(1))
+
+  actual_sample_col <- candidate_cols[which.max(match_counts)]
+  print(paste("-> Sample-ID-Spalte automatisch gewaehlt:", actual_sample_col,
+              "(", max(match_counts), "uebereinstimmende Sample-IDs von",
+              length(unique(trusted_pairs$sample_id)), "in der QC-Tabelle, geprueft gegen:",
+              paste(candidate_cols, collapse=", "), ")"))
+  if (max(match_counts) == 0) {
+    warning("Keine der gefundenen Sample/Donor-Spalten hat Overlap mit trusted_pairs$sample_id!")
+  }
+}
+# Gating
+for (canonical_name in names(lineage_aliases)) {
+
+  aliases <- lineage_aliases[[canonical_name]]
+  csv_lineage_name <- canonical_name 
+
+  match_idx <- which(seurat_obj$lineage %in% aliases)
+  if (length(match_idx) < 50) next
+
+  Zellen_im_Zelltyp <- match_idx
   
   if (!is.null(trusted_pairs)) {
-    actual_sample_col <- case_when(
-      "donor_id" %in% colnames(seurat_obj@meta.data) ~ "donor_id",
-      "sample_id" %in% colnames(seurat_obj@meta.data) ~ "sample_id",
-      TRUE ~ "sample"
-    )
     
-    cell_samples <- seurat_obj@meta.data[[actual_sample_col]][Zellen_im_Zelltyp] 
-    
+    cell_samples <- seurat_obj@meta.data[[actual_sample_col]][Zellen_im_Zelltyp]
     valid_samples <- trusted_pairs %>% 
       filter(celltype_id == csv_lineage_name) %>% 
       pull(sample_id)
@@ -190,7 +237,7 @@ for (lineage_name in all_lineages) {
     Zellen_im_Zelltyp <- Zellen_im_Zelltyp[cell_samples %in% valid_samples]
     
     if (length(Zellen_im_Zelltyp) < 20) {
-      print(paste("   -> [QC Filter] Überspringe Lineage", lineage_name, "- Zu wenige verlässliche Zellen übrig."))
+      print(paste("   -> [QC Filter] Überspringe Lineage", canonical_name, "- Zu wenige verlässliche Zellen übrig."))
       next
     }
   }
@@ -232,7 +279,7 @@ print(paste("-> RDS erfolgreich gespeichert unter:", file.path(OUTPUT_DIR, neuer
 
 # Plots
 print("-> Generiere Validierungs-Plots...")
-plot_data <- seurat_obj@meta.data %>% filter(lineage %in% all_lineages)
+plot_data <- seurat_obj@meta.data %>% filter(lineage %in% unlist(lineage_aliases))
 
 p1 <- ggplot(plot_data, aes(x = lineage, fill = pla_status)) +
   geom_bar(position = "fill") + theme_minimal() +

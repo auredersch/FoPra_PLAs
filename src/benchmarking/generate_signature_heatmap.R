@@ -8,13 +8,6 @@ OUTPUT_DIR  <- "/nfs/home/students/a.dersch/FoPra_PLAs/results/benchmarking"
 HEATMAP_DIR <- file.path(OUTPUT_DIR, "signature_heatmaps")
 dir.create(HEATMAP_DIR, recursive = TRUE, showWarnings = FALSE)
 
-# -------------------------------------------------------------------
-# KONFIGURATION (per CLI-Argument steuerbar, mit sinnvollen Defaults)
-# -------------------------------------------------------------------
-# Aufruf: Rscript generate_signature_heatmap.R [Filter_Modes] [GT_Sources] [Metrics] [Threshold_Mode]
-# Alle Listen-Argumente sind kommagetrennt, z.B.:
-#   Rscript generate_signature_heatmap.R "raw" "biologist,gmm_dual" "F1,Rec" "gmm_dist_dual"
-# Ohne Argumente laufen die bisherigen Defaults (alle 6 Kombinationen, alle 3 Metriken).
 args <- commandArgs(trailingOnly = TRUE)
 
 FILTER_MODES_ARG      <- if (length(args) >= 1 && nzchar(args[1])) args[1] else "raw,qc_tolerant"
@@ -26,9 +19,6 @@ FILTER_MODES <- trimws(strsplit(FILTER_MODES_ARG, ",")[[1]])
 GT_SOURCES   <- trimws(strsplit(GT_SOURCES_ARG, ",")[[1]])
 METRICS      <- trimws(strsplit(METRICS_ARG, ",")[[1]])
 
-# Validierung gegen bekannte, gueltige Werte - faengt Tippfehler in den CLI-Argumenten
-# ab (z.B. "biologst" statt "biologist"), statt dass die Kombination spaeter still
-# null Zeilen liefert und man raetseln muss, ob es an fehlenden Daten oder einem Tippfehler liegt.
 VALID_FILTER_MODES <- c("raw", "qc_tolerant", "qc_strict")
 VALID_GT_SOURCES   <- c("biologist", "gmm_dual", "gmm_single")
 VALID_METRICS      <- c("F1", "Prec", "Rec", "SRI")
@@ -59,9 +49,6 @@ print("======================================================")
 
 METRIC_LABELS <- c(F1 = "F1-Score", Prec = "Precision", Rec = "Recall", SRI = "Signal-weighted Recall")
 
-# -------------------------------------------------------------------
-# 1. ALLE METRIK-CSVS EINMALIG EINLESEN UND ZUSAMMENFUEHREN
-# -------------------------------------------------------------------
 all_files <- list.files(METRICS_DIR, pattern = "\\.csv$", full.names = TRUE)
 
 if (length(all_files) == 0) {
@@ -81,19 +68,12 @@ raw_list <- lapply(all_files, function(f) {
     return(NULL)
   }
 
-  # SRI ist optional/rueckwaertskompatibel: aeltere Metrics-CSVs (vor Einfuehrung der
-  # Metrik) werden nicht komplett verworfen, sondern bekommen NA - fallen dann bei
-  # Anforderung der SRI-Heatmap automatisch aus der Aggregation raus (na.rm = TRUE
-  # in generate_single_heatmap), statt den ganzen File-Read zu blockieren.
   if (!"SRI" %in% colnames(df)) {
     warning("Datei ", basename(f), " enthaelt noch keine SRI-Spalte (vermutlich vor ",
             "Einfuehrung der Metrik gelaufen) - SRI wird als NA gesetzt.")
     df$SRI <- NA_real_
   }
 
-  # Defensive Konsistenzpruefung: frueher wurde nur df$Filter_Mode[1] / df$GT_Source[1]
-  # geprueft und implizit angenommen, die ganze Datei sei homogen. Hier wird das
-  # tatsaechlich sichergestellt statt nur vermutet.
   if (length(unique(df$Filter_Mode)) > 1 || length(unique(df$GT_Source)) > 1 ||
       length(unique(df$Threshold_Mode)) > 1) {
     warning("Datei ", basename(f), " enthaelt gemischte Filter_Mode/GT_Source/",
@@ -110,18 +90,12 @@ if (nrow(combined_all) == 0) {
   stop("Fehler: Nach dem Einlesen sind keine gueltigen Metrik-Zeilen uebrig!")
 }
 
-# Expliziter Filter auf den fixen Threshold_Mode (siehe Kommentar oben)
 combined_all <- combined_all %>% filter(Threshold_Mode == FIXED_THRESHOLD_MODE)
 
 if (nrow(combined_all) == 0) {
   stop("Fehler: Keine Zeilen mit Threshold_Mode == '", FIXED_THRESHOLD_MODE, "' gefunden!")
 }
 
-# -------------------------------------------------------------------
-# 2. WIEDERVERWENDBARE HEATMAP-FUNKTION
-# -------------------------------------------------------------------
-# Erstellt eine einzelne Heatmap fuer genau eine Filter_Mode/GT_Source-Kombination
-# und eine Metrik.
 generate_single_heatmap <- function(data, filter_mode, gt_source, metric) {
   subset_df <- data %>%
     filter(Filter_Mode == filter_mode, GT_Source == gt_source) %>%
@@ -166,9 +140,6 @@ generate_single_heatmap <- function(data, filter_mode, gt_source, metric) {
   subset_df %>% mutate(Filter_Mode = filter_mode, GT_Source = gt_source, Metric = metric)
 }
 
-# -------------------------------------------------------------------
-# 3a. EINZEL-HEATMAPS FUER ALLE ANGEGEBENEN KOMBINATIONEN X METRIKEN
-# -------------------------------------------------------------------
 n_combos_expected <- length(FILTER_MODES) * length(GT_SOURCES) * length(METRICS)
 print(paste("Erzeuge bis zu", n_combos_expected, "Einzel-Heatmaps (",
             length(FILTER_MODES), "Filter_Mode(s) x", length(GT_SOURCES), "GT_Source(s) x",
@@ -194,9 +165,6 @@ if (nrow(combo_df) == 0) {
 print("Gefundene Datenkombinationen (Dataset x Signature x Filter_Mode x GT_Source x Metric):")
 print(table(combo_df$Dataset, combo_df$Metric))
 
-# -------------------------------------------------------------------
-# 3b. GEFACETTETE UEBERSICHT PRO METRIK (Filter_Mode x GT_Source in einer Figure)
-# -------------------------------------------------------------------
 generate_faceted_overview <- function(data, metric) {
   subset_df <- data %>% filter(Metric == metric)
   if (nrow(subset_df) == 0) return(NULL)
