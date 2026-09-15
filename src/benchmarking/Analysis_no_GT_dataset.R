@@ -31,7 +31,7 @@ library(gprofiler2)
             min_cells
         )
 
-    p <-ggplot(
+    p <- ggplot(
         threshold_check,
         aes(
             x = min_cells,
@@ -214,10 +214,15 @@ run_paired_edger <- function(object, ct, tp, min_cells = 5) {
     res$gene <- rownames(res)
 
     res <- res %>%
+    dplyr::filter(
+        is.finite(F),
+        is.finite(logFC)
+    ) %>%
     dplyr::mutate(
         rank_score = sign(logFC) * sqrt(F)
     ) %>%
     dplyr::arrange(desc(rank_score))
+
 
     res
 }
@@ -231,11 +236,201 @@ de <- run_paired_edger(
 
 head(de)
 
-ranked_genes <- res$gene    
+ranked_genes <- de$gene    
 
-gsea <- gost(
+gsea_PLA <- gost(
     query = ranked_genes,
     organism = "hsapiens",
     ordered_query = TRUE,
     sources = c("GO:BP", "REAC", "KEGG")
 )
+
+ranked_PF <- de %>%
+    arrange(rank_score) %>%
+    pull(gene)
+
+gsea_PF <- gost(
+    query = ranked_PF,
+    organism = "hsapiens",
+    ordered_query = TRUE,
+    sources = c("GO:BP", "REAC", "KEGG")
+)
+
+
+pla_terms <- gsea_PLA$result %>%
+    dplyr::mutate(direction = "PLA")
+
+pf_terms <- gsea_PF$result %>%
+    dplyr::mutate(direction = "platelet-free")
+
+gsea_terms <- dplyr::bind_rows(
+    pla_terms,
+    pf_terms
+)
+
+
+
+
+# --------- PLOTS ---------
+
+top_terms <- gsea_terms %>%
+    dplyr::group_by(direction) %>%
+    dplyr::slice_min(
+        order_by = p_value,
+        n = 10,
+        with_ties = FALSE
+    ) %>%
+    dplyr::ungroup()
+
+p <- ggplot(
+    top_terms,
+    aes(
+        x = -log10(p_value),
+        y = reorder(term_name, -log10(p_value)),
+        size = intersection_size
+    )
+) +
+    geom_point() +
+    facet_wrap(
+        ~ direction,
+        scales = "free_y"
+    ) +
+    labs(
+        x = "-log10(p-value)",
+        y = NULL,
+        size = "Genes"
+    ) +
+    theme_bw()
+
+ggsave(
+    p,
+    filename = file.path(output_path, "gsea_top_terms.png"),
+    width = 10,
+    height = 6,
+    dpi = 300
+)
+
+
+
+
+## Grid
+
+analysis_grid <- pair_summary %>%
+    dplyr::filter(n_paired_donors >= 5)
+
+DE_results <- list()
+GSEA_results <- list()
+
+for (i in seq_len(nrow(analysis_grid))) {
+
+    ct <- analysis_grid$cell_type_lowerres[i]
+    tp <- analysis_grid$timepoint.final[i]
+    n_pairs <- analysis_grid$n_paired_donors[i]
+
+    message("Running: ", ct, " | ", tp)
+
+    # Run paired pseudobulk DE
+    de <- tryCatch(
+        run_paired_edger(
+            pbmc,
+            ct = ct,
+            tp = tp,
+            min_cells = 5
+        ),
+        error = function(e) {
+            message("DE failed: ", conditionMessage(e))
+            return(NULL)
+        }
+    )
+
+    if (is.null(de)) {
+        next
+    }
+
+    # Keep genes with valid ranking statistics
+    de <- de %>%
+        dplyr::filter(is.finite(rank_score)) %>%
+        dplyr::mutate(
+            cell_type_lowerres = ct,
+            timepoint.final = tp,
+            n_pairs = n_pairs
+        )
+
+    key <- paste(ct, tp, sep = "__")
+
+    DE_results[[key]] <- de
+
+    # Generate both ranking directions
+    rankings <- list(
+        PLA = de %>%
+            dplyr::arrange(dplyr::desc(rank_score)) %>%
+            dplyr::pull(gene),
+
+        `platelet-free` = de %>%
+            dplyr::arrange(rank_score) %>%
+            dplyr::pull(gene)
+    )
+
+    for (direction in names(rankings)) {
+
+        gp <- tryCatch(
+            gprofiler2::gost(
+                query = rankings[[direction]],
+                organism = "hsapiens",
+                ordered_query = TRUE,
+                significant = TRUE,
+                user_threshold = 0.05,
+                correction_method = "g_SCS",
+                sources = c("GO:BP", "REAC", "KEGG"),
+                highlight = TRUE
+            ),
+            error = function(e) {
+                message("g:Profiler failed: ", conditionMessage(e))
+                return(NULL)
+            }
+        )
+
+        if (!is.null(gp) && !is.null(gp$result)) {
+
+            GSEA_results[[paste(key, direction, sep = "__")]] <-
+                gp$result %>%
+                dplyr::mutate(
+                    cell_type_lowerres = ct,
+                    timepoint.final = tp,
+                    direction = direction,
+                    n_pairs = n_pairs
+                )
+        }
+    }
+}
+
+DE_all <- dplyr::bind_rows(DE_results)
+GSEA_all <- dplyr::bind_rows(GSEA_results)
+
+pathway_counts <- GSEA_all %>%
+    dplyr::filter(
+        source %in% c("REAC", "KEGG")
+    ) %>%
+    dplyr::count(
+        cell_type_lowerres,
+        timepoint.final,
+        direction,
+        name = "n_pathways"
+    )
+
+pathway_balance <- pathway_counts %>%
+    tidyr::pivot_wider(
+        names_from = direction,
+        values_from = n_pathways,
+        values_fill = 0
+    ) %>%
+    dplyr::mutate(
+        difference = PLA - `platelet-free`,
+        log2_ratio = log2(
+            (PLA + 1) /
+            (`platelet-free` + 1)
+        )
+    ) %>%
+    dplyr::arrange(dplyr::desc(difference))
+
+pathway_balance
