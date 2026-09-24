@@ -37,21 +37,24 @@ options <- list(
   make_option("--harmony-col", type = "character", default = "batch", required = FALSE,
               help = "Column name in metadata for Harmony batch correction"),
   make_option(c("-o", "--output"), type = "character", default = "data/seu_final.rds", required = FALSE,
-              help = "Output path for the final Seurat object")
+              help = "Output path for the final Seurat object"),
+  make_option(c("-m", "--metadata-path"), type = "character", default = NULL, required = FALSE,
+              help = "Path to metadata CSV file (optional)")
 )
 
 parser <- OptionParser(option_list = options)
 
 if (interactive()) {
   args <- list(
-    plot_dir = "results/rna_qc",
-    data_path = "/nfs/home/students/f.mathis/SysBioMed-PLAs/data/datasets/gated_heart_processed.rds",
-    sample_col = "sample",
+    plot_dir = "results/rna_qc/stemi_no_qc",
+    data_path = "/nfs/home/students/f.mathis/FoPra_PLAs/data/stemi_no_qc",
+    sample_col = NULL,
     batch_col = NULL,
     soupx = FALSE,
     harmony = FALSE,
     harmony_col = NULL,
-    output = "data/seu_final.rds"
+    metadata_path = NULL,
+    output = "data/stemi_no_qc_final.rds"
   )
 } else {
   args <- parse_args(parser)
@@ -81,12 +84,7 @@ load_seurat <- function(input_path, metadata_path = NULL, project_name = "platel
       seu <- readRDS(input_path)
       return(seu)
     } 
-
-    if(is.null(metadata_path)) {
-      stop("Metadata path must be provided when loading from non-RDS input.")
-    }
-
-    counts <- Read10X(data.dir = input_path)
+    counts <- Read10X(data.dir = input_path, gene.column = 1)
     counts <- as(counts, "dgCMatrix")
 
     seu <- CreateSeuratObject(
@@ -96,12 +94,15 @@ load_seurat <- function(input_path, metadata_path = NULL, project_name = "platel
       min.features = min_features
     )
 
-    metadata <- read.csv(metadata_path, row.names = 1)
-    seu_ids <- colnames(seu)
+    if(!is.null(metadata_path)) {
+      metadata <- read.csv(metadata_path, row.names = 1)
+      seu_ids <- colnames(seu)
+      meta_use <- metadata[seu_ids, , drop = FALSE]
+      seu <- AddMetaData(seu, metadata = meta_use)
 
-    meta_use <- metadata[seu_ids, , drop = FALSE]
-    seu <- AddMetaData(seu, metadata = meta_use)
-  
+    } else {
+      warning("No Metadata path provided when loading from non-RDS input.")
+    }
 
   return(seu)
 }
@@ -146,8 +147,17 @@ run_soupx <- args$soupx
 run_harmony <- args$harmony
 harmony_col <- args$harmony_col
 output <- args$output
+metadata_path <- args$metadata_path
 
-seu <- load_seurat(data_path)
+seu <- load_seurat(data_path, metadata_path = metadata_path)
+## Initial Clustering
+
+seu$lane <- sub(".*_", "", colnames(seu))
+ 
+seu$run_lane <- sub("^[^_]+_", "", colnames(seu))
+
+## END
+
 seu <- set_metadata_group(seu, sample_col, "sample")
 
 batch_values <- if ("batch" %in% colnames(seu[[]])) {
@@ -190,7 +200,7 @@ plot_qc_prepost <- function(seu, prefix, group.by = sample_col) {
 
 seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
 
-plot_qc_prepost(seu, "pre_QC")
+plot_qc_prepost(seu, "pre_QC", NULL)
 
 # saveRDS(seu, file = "data/seu_before_filtering.rds")
 # print("Saved seu_before_filtering.rds")
@@ -439,8 +449,7 @@ seu <- FindClusters(seu, resolution = 0.5)
 # Doublet detection
 sce <- as.SingleCellExperiment(seu)
 
-sce <- scDblFinder(sce, clusters = "seurat_clusters", samples = "sample")
-
+sce <- scDblFinder(sce, clusters = "seurat_clusters", samples = "run_lane")
 seu$scDblFinder_class <- sce$scDblFinder.class
 seu$scDblFinder_score <- sce$scDblFinder.score
 
@@ -494,7 +503,6 @@ VariableFeatures(seu) <- hvgs_genes
 seu <- ScaleData(seu, features = hvgs_genes)
 
 seu <- RunPCA(seu, features = hvgs_genes)
-
 if (run_harmony) {
   seu <- RunHarmony(seu, group.by.vars = harmony_col)
   reduction_use <- "harmony"
@@ -675,3 +683,4 @@ save_plot(p, "QC_pre_violin_count.png", width = 10, height = 5)
 saveRDS(seu, file = output)
 print("Saved seu")
 # seu_sx <- readRDS("data/seu_sx_final_new.rds")
+
