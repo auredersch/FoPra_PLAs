@@ -40,8 +40,10 @@ prepare_scores <- function(input, sample_col, signature_files, seed = 42L) {
   })
   set.seed(seed)
   rankings <- AUCell_buildRankings(counts, plotStats = FALSE)
-  auc <- getAUC(AUCell_calcAUC(signatures, rankings, aucMaxRank = ceiling(nrow(counts) * 0.05)))
+  auc <- getAUC(AUCell_calcAUC(signatures, rankings))
   cells <- colnames(auc)
+  if (!setequal(cells, rownames(meta)))
+    stop("AUCell scores do not cover every input cell; check RNA assay cell identifiers.")
   meta <- meta[cells, , drop = FALSE]
   lineage_col <- if ("lineage" %in% names(meta)) "lineage" else "celltype_clean"
   reference_col <- intersect(c("pla_status", "pla.status"), names(meta))
