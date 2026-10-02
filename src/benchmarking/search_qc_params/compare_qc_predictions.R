@@ -47,7 +47,7 @@ outcome <- function(prediction, reference) {
 }
 
 main <- function(args = commandArgs(trailingOnly = TRUE)) {
-  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na"
+  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full"
   runs <- read.csv(file.path(input_dir, "combined/run_config.csv"))
   if (length(args) >= 2) runs <- runs[as.integer(args[2]), , drop = FALSE]
 

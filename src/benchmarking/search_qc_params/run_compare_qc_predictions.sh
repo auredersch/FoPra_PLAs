@@ -19,5 +19,5 @@ export MKL_NUM_THREADS=1
 
 # One task per row of combined/run_config.csv (currently 40 runs).
 # Optional first argument: a different QC grid directory.
-INPUT_DIR="${1:-results/benchmarking/qc_grid}"
+INPUT_DIR="${1:-results/benchmarking/qc_grid_no_na_full}"
 Rscript src/benchmarking/search_qc_params/compare_qc_predictions.R "$INPUT_DIR" "$SLURM_ARRAY_TASK_ID"

@@ -2,7 +2,7 @@
 library(dplyr)
 
 args <- commandArgs(trailingOnly = TRUE)
-input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na"
+input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full"
 output_dir <- file.path(input_dir, "combined")
 dir.create(output_dir, showWarnings = FALSE)
 configs <- list.files(input_dir, "^run_config\\.rds$", recursive = TRUE, full.names = TRUE)

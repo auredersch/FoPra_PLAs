@@ -3,20 +3,21 @@ library(dplyr)
 library(ggplot2)
 
 args <- commandArgs(trailingOnly = TRUE)
-input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na"
+input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full"
 output_dir <- file.path(input_dir, "plots")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 data <- read.csv(file.path(input_dir, "combined/grid_summary.csv")) %>%
-  filter(!baseline) %>%
+  #filter(baseline | min_cells_per_status == 5) %>%
   arrange(desc(run_id)) %>%
   distinct(dataset, gene_set, mode, scope,
     min_difference, max_overlap, min_cells_per_status,
     .keep_all = TRUE) %>%
   mutate(
     method = paste0(gene_set, "\n", sub("gmm_dist_", "", mode), " | ", scope),
+    # Display the unfiltered baseline alongside the min/status = 5 grid.
+    min_status_panel = factor(ifelse(baseline, 20, min_cells_per_status)),
     across(c(min_difference, max_overlap, min_cells_per_status), factor)
-  ) %>%
-  filter(min_cells_per_status == 0)
+  )
 
 for (ds in unique(data$dataset)) {
   for (metric in c("F1", "retained_cell_fraction")) {
@@ -29,8 +30,10 @@ for (ds in unique(data$dataset)) {
       geom_tile(color = "white") +
       geom_text(aes(label = label, color = text_color), size = 2.8) +
       scale_color_identity() +
-      facet_grid(method ~ min_cells_per_status,
-        labeller = labeller(min_cells_per_status = function(x) paste0("min/status = ", x))) +
+      facet_grid(method ~ min_status_panel,
+        labeller = labeller(min_status_panel = function(x) paste0("min/status = ", x))) +
+      scale_x_discrete(labels = function(x) ifelse(x == "Inf", "No ADT QC", x)) +
+      scale_y_discrete(labels = function(x) ifelse(x == "-Inf", "No ADT QC", x)) +
       scale_fill_viridis_c(
         limits = if (metric == "F1") NULL else c(0, 1),
         labels = if (metric == "F1") scales::label_number(accuracy = 0.01) else scales::label_percent(),
@@ -38,7 +41,8 @@ for (ds in unique(data$dataset)) {
       ) +
       labs(title = paste(ds, "-", if (metric == "F1") "Cell-level F1" else "Cell retention"),
         x = "max_overlap", y = "min_difference", fill = NULL,
-        caption = "Retention relative to the frequency-only baseline. Grey: undefined metric.") +
+        caption = paste("Retention relative to the frequency-only baseline. Grey: undefined metric.",
+          "No ADT QC: baseline without ADT filtering, independent of min/status.")) +
       theme_minimal(base_size = 10) +
       theme(panel.grid = element_blank(), strip.text.y = element_text(angle = 0),
             plot.title = element_text(face = "bold"))
