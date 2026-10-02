@@ -8,7 +8,7 @@ output_dir <- file.path(input_dir,  "plots", "no_redundancy")
 dir.create(output_dir, showWarnings = FALSE)
 data <- bind_rows(
   read.csv(file.path(input_dir, "grid_summary.csv")),
-  read.csv("results/benchmarking/frequency_qc_no_filter/grid_summary.csv")
+  read.csv("results/benchmarking/frequency_qc_no_na/grid_summary.csv")
 ) %>%
   arrange(max_ci_width, min_cells_per_pair) %>%
   filter(min_cells_per_pair == 10 | (max_ci_width == 1 & min_cells_per_pair == 0)) %>%

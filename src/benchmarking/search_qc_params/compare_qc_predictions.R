@@ -1,7 +1,7 @@
 # From project root: Rscript src/benchmarking/search_qc_params/compare_qc_predictions.R [grid_dir] [run_index]
 # Baseline: no frequency/ADT QC, with the source run's metadata exclusion rule.
 # Uses combined/run_config.csv, score caches and saved pair decisions; refits GMMs.
-source("src/benchmarking/Benchmarking_QC_Grid.R")
+source("src/benchmarking/search_qc_params/Benchmarking_QC_Grid.R")
 
 compare_predictions <- function(cells, groups = character()) {
   cells %>% group_by(across(all_of(groups))) %>% summarise(
@@ -47,7 +47,7 @@ outcome <- function(prediction, reference) {
 }
 
 main <- function(args = commandArgs(trailingOnly = TRUE)) {
-  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid"
+  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na"
   runs <- read.csv(file.path(input_dir, "combined/run_config.csv"))
   if (length(args) >= 2) runs <- runs[as.integer(args[2]), , drop = FALSE]
 

@@ -1,7 +1,7 @@
 library(ggplot2)
 library(dplyr)
 
-input_dir <- "results/benchmarking/qc_grid"
+input_dir <- "results/benchmarking/qc_grid_no_na"
 output_dir <- file.path(input_dir, "combined", "plots")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 pairs <- read.csv(file.path(input_dir, "combined/pair_metrics.csv")) %>%

@@ -4,7 +4,7 @@ library(tidyr)
 library(ggplot2)
 
 args <- commandArgs(trailingOnly = TRUE)
-input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid"
+input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na"
 output_dir <- file.path(input_dir, "plots")
 dir.create(output_dir, showWarnings = FALSE)
 
