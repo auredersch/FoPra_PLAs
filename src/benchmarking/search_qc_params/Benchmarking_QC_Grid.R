@@ -159,17 +159,18 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   signature_files <- c(platelet = signature, immune = file.path(root,
     "data/signatures/GOBP_LEUKOCYTE_ACTIVATION_INVOLVED_IN_INFLAMMATORY_RESPONSE.v2025.1.Hs.csv"))
   run_id <- arg(8, paste0(format(Sys.time(), "%Y%m%d_%H%M%S"), "_", Sys.getpid()))
-  qc_dir <- Sys.getenv("PLA_QC_DIR", file.path(root, "results/sample_qc", dataset, variant))
   exclude_na <- toupper(Sys.getenv("PLA_EXCLUDE_NA_METADATA", "FALSE")) == "TRUE"
+  qc_dir <- Sys.getenv("PLA_QC_DIR", if (exclude_na) file.path(root, "results/sample_qc_no_na", dataset, variant) else 
+    file.path(root, "results/sample_qc_with_na", dataset, variant))
   output_name <- if (exclude_na) "qc_grid_no_na" else "qc_grid"
   out <- file.path(Sys.getenv("PLA_GRID_OUTPUT_ROOT", file.path(root, "results/benchmarking", output_name)), dataset, run_id)
   if (dir.exists(out)) stop("Run directory already exists; choose a new run_id: ", out)
   config <- get_pla_dataset_config(dataset)
 
   grid <- if (nzchar(arg(4, ""))) read.csv(args[4]) else
-    expand.grid(min_difference = c(0.0, 1.0, 1.2, 1.4, 1.5),
+    expand.grid(min_difference = c(0.0, 0.5, 1.0, 1.2, 1.4, 1.5),
                 max_overlap = c(0.0125, 0.025, 0.05, 1.0),
-                min_cells_per_status = c(0,10, 20, 50, 100))
+                min_cells_per_status = c(0, 10, 20, 50, 100))
   if (!"min_cells_per_status" %in% names(grid))
     grid$min_cells_per_status <- PLA_QC_PARAMETERS$min_cells_per_status
   
