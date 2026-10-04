@@ -3,17 +3,27 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-input_dir <- "results/benchmarking/frequency_qc_full/combined"
-output_dir <- file.path(input_dir,  "plots", "no_redundancy")
+input_dir <- "results/benchmarking/frequency_qc_full_no_na/combined"
+output_dir <- file.path(input_dir,  "plots")
 dir.create(output_dir, showWarnings = FALSE)
 data <- read.csv(file.path(input_dir, "grid_summary.csv")) %>%
   arrange(max_ci_width, min_cells_per_pair) %>%
-  filter(min_cells_per_pair == 10 | (max_ci_width == 1 & min_cells_per_pair == 0)) %>%
-  mutate(method = paste(gene_set, sub("gmm_dist_", "", mode), scope, sep = " | "),
-         setting = ifelse(max_ci_width == 1 & min_cells_per_pair == 0, "No QC",
-                          sprintf("%.2f / %d", max_ci_width, min_cells_per_pair))) %>%
-  mutate(setting = factor(setting, levels = c(setdiff(unique(setting), "No QC"), "No QC")),
-         method = factor(method, levels = rev(sort(unique(method)))))
+  #filter(min_cells_per_pair == 10 | baseline) %>%
+  mutate(
+    method = paste(gene_set, sub("gmm_dist_", "", mode), scope, sep = " | "),
+    setting = ifelse(
+      baseline,
+      "No QC",
+      sprintf("%.2f / %d", max_ci_width, min_cells_per_pair)
+    )
+  ) %>%
+  mutate(
+    setting = factor(
+      setting,
+      levels = c(setdiff(unique(setting), "No QC"), "No QC")
+    ),
+    method = factor(method, levels = rev(sort(unique(method))))
+  )
 
 reference <- data %>% filter(setting == "No QC") %>%
   select(dataset, method, reference_F1 = F1)

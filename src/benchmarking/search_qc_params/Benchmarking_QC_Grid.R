@@ -167,9 +167,9 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   config <- get_pla_dataset_config(dataset)
 
   grid <- if (nzchar(arg(4, ""))) read.csv(args[4]) else
-    expand.grid(min_difference = c(0, 0.25, 0.5, 1, 1.5),
-                max_overlap = c(0.025, 0.05, 0.10, 0.20, 1.0),
-                min_cells_per_status = c(0, 3, 5, 10, 20))
+    expand.grid(min_difference = c(0.0, 1.0, 1.2, 1.4, 1.5),
+                max_overlap = c(0.0125, 0.025, 0.05, 1.0),
+                min_cells_per_status = c(0,10, 20, 50, 100))
   if (!"min_cells_per_status" %in% names(grid))
     grid$min_cells_per_status <- PLA_QC_PARAMETERS$min_cells_per_status
   
@@ -190,10 +190,22 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     mutate(lineage = canonical_lineage(lineage))
   if (anyDuplicated(pairs[c("sample_id", "lineage")])) stop("Duplicate sample-lineage pairs in frequency QC.")
 
-  provenance <- list(input = input, input_size = file.info(input)$size,
-    input_mtime = as.numeric(file.info(input)$mtime), dataset = dataset,
-    sample_col = config$sample_col, signatures = tools::md5sum(signature_files), seed = 42L,
-    scoring = "AUCell counts; fixed genes; aucMaxRank=ceiling(n_genes*0.05); no extension")
+  signature_files <- vapply(
+    signature_files, normalizePath, character(1), mustWork = TRUE
+  )
+
+  provenance <- list(
+    input_stage = "before_frequency_qc",
+    input = input,
+    input_size = file.info(input)$size,
+    input_mtime = as.numeric(file.info(input)$mtime),
+    dataset = dataset,
+    sample_col = config$sample_col,
+    signatures = tools::md5sum(signature_files),
+    seed = 42L,
+    scoring = "AUCell counts; fixed genes; aucMaxRank=ceiling(n_genes*0.05); no extension",
+    cell_coverage_check = "all input metadata cells must have scores"
+  )
   cache <- arg(9, "")
   if (nzchar(cache)) {
     cached <- readRDS(cache)

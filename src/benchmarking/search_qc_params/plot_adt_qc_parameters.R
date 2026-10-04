@@ -3,11 +3,11 @@ library(dplyr)
 library(ggplot2)
 
 args <- commandArgs(trailingOnly = TRUE)
-input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full"
+input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full_freq_cache"
 output_dir <- file.path(input_dir, "plots")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 data <- read.csv(file.path(input_dir, "combined/grid_summary.csv")) %>%
-  #filter(baseline | min_cells_per_status == 5) %>%
+  filter(baseline | min_cells_per_status == 10) %>%
   arrange(desc(run_id)) %>%
   distinct(dataset, gene_set, mode, scope,
     min_difference, max_overlap, min_cells_per_status,
