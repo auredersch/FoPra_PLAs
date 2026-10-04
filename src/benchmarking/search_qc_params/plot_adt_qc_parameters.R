@@ -3,8 +3,8 @@ library(dplyr)
 library(ggplot2)
 
 args <- commandArgs(trailingOnly = TRUE)
-input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full_freq_cache"
-output_dir <- file.path(input_dir, "plots")
+input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_with_na_new"
+output_dir <- file.path(input_dir, "plots", "filtered")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 data <- read.csv(file.path(input_dir, "combined/grid_summary.csv")) %>%
   filter(baseline | min_cells_per_status == 10) %>%
@@ -15,7 +15,7 @@ data <- read.csv(file.path(input_dir, "combined/grid_summary.csv")) %>%
   mutate(
     method = paste0(gene_set, "\n", sub("gmm_dist_", "", mode), " | ", scope),
     # Display the unfiltered baseline alongside the min/status = 5 grid.
-    min_status_panel = factor(ifelse(baseline, 20, min_cells_per_status)),
+    min_status_panel = factor(ifelse(baseline, 100, min_cells_per_status)),
     across(c(min_difference, max_overlap, min_cells_per_status), factor)
   )
 

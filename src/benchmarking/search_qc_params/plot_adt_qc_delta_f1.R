@@ -16,7 +16,7 @@ prepare_delta_data <- function(summary) {
     distinct(dataset, gene_set, mode, scope,
       min_difference, max_overlap, min_cells_per_status,
       .keep_all = TRUE) %>%
-    #filter(min_cells_per_status == 5) %>%
+    #filter(min_cells_per_status == 10) %>%
     left_join(reference, by = c("dataset", "run_id", "gene_set", "mode", "scope"))
 
   if (any(is.na(data$baseline_found)))
@@ -33,7 +33,7 @@ prepare_delta_data <- function(summary) {
 
 main <- function() {
   args <- commandArgs(trailingOnly = TRUE)
-  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_full"
+  input_dir <- if (length(args)) args[1] else "results/benchmarking/qc_grid_no_na_new"
   output_dir <- file.path(input_dir, "plots", "filtered")
   data <- prepare_delta_data(read.csv(file.path(input_dir, "combined/grid_summary.csv")))
   delta_limit <- max(abs(data$delta_F1), 0.001, na.rm = TRUE)
@@ -66,7 +66,7 @@ main <- function() {
             plot.title = element_text(face = "bold"))
     for (ext in c("png", "pdf"))
       ggsave(file.path(output_dir, paste0("adt_parameters_delta_F1_", ds, ".", ext)),
-             p, width = 14, height = 14, dpi = 300, bg = "white")
+             p, width = 16, height = 14, dpi = 300, bg = "white")
   }
 }
 
