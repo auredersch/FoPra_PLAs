@@ -1,7 +1,7 @@
 library(ggplot2)
 library(dplyr)
 
-input_dir <- "results/benchmarking/qc_grid_no_na"
+input_dir <- "results/benchmarking/frequency_qc_full"
 output_dir <- file.path(input_dir, "combined", "plots")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 pairs <- read.csv(file.path(input_dir, "combined/pair_metrics.csv")) %>%
@@ -14,7 +14,6 @@ pairs <- read.csv(file.path(input_dir, "combined/pair_metrics.csv")) %>%
         .groups = "drop"
     ) %>%
     mutate(
-        FPR = FP / (FP + TN),
         method = paste(gene_set, sub("gmm_dist_", "", mode), scope, sep = " | "),
         label = ifelse(
         is.finite(FPR),
