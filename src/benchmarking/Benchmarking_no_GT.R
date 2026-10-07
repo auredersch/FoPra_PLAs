@@ -10,13 +10,13 @@ project_root <- "/nfs/home/students/f.mathis/FoPra_PLAs"
 
 args <- commandArgs(trailingOnly = TRUE)
 METHOD_NAME    <- if(length(args) >= 1) args[1] else "AUCell"
-SIG_NAME       <- if(length(args) >= 2) args[2] else "GOBP_REG"
-SIG_FILE_BASE  <- if(length(args) >= 3) args[3] else "GOBP_REGULATION_OF_PLATELET_ACTIVATION.v2025.1.Hs.csv"
+SIG_NAME       <- if(length(args) >= 2) args[2] else "GOBP"
+SIG_FILE_BASE  <- if(length(args) >= 3) args[3] else "GOBP_REGULATION_OF_PLATELET_ACTIVATION.v2025.1.Hs"
 USE_EXTENSION  <- if(length(args) >= 4) as.logical(args[4]) else FALSE
 THRESH_MODE    <- if(length(args) >= 5) args[5] else "gmm_dist_dual" 
-CURRENT_FILE   <- if(length(args) >= 6) args[6] else "/nfs/home/students/f.mathis/FoPra_PLAs/data/stemi_raw" 
+CURRENT_FILE   <- if(length(args) >= 6) args[6] else "/nfs/home/students/f.mathis/FoPra_PLAs/data/stemi_qc" 
 SAVE_RDS       <- if(length(args) >= 7) as.logical(args[7]) else TRUE
-THRESH_SCOPE   <- if(length(args) >= 8) args[8] else "global"       # "global" oder "per_celltype"
+THRESH_SCOPE   <- if(length(args) >= 8) args[8] else "per_celltype"       # "global" oder "per_celltype"
 
 set.seed(42)
 
@@ -73,6 +73,12 @@ pbmc <- CreateSeuratObject(
   meta.data = metadata
 )
 
+pbmc <- NormalizeData(
+    pbmc,
+    assay = "RNA",
+    verbose = FALSE
+)
+
 pbmc$celltype_clean <- "cell_type_lowerres"
 
 # --- GENLISTE LADEN ---
@@ -127,7 +133,7 @@ if ("RNA" %in% Assays(pbmc)) {
 print(paste("--- Calculating Scores using", METHOD_NAME, "---"))
 
 if (METHOD_NAME == "AUCell") {
-    expression_matrix <- GetAssayData(pbmc, assay = "RNA", layer = "counts")
+    expression_matrix <- GetAssayData(pbmc, assay = "RNA", layer = "data")
     rankings <- AUCell_buildRankings(expression_matrix, plotStats = FALSE)
     
     auc_orig <- AUCell_calcAUC(list(Platelet_Orig = genes), rankings)
@@ -321,7 +327,7 @@ if (THRESH_MODE == "percentile") {
 # --- KLASSIFIKATION ---
 positive_condition <- if (THRESH_MODE == "kmeans") {
     pbmc@meta.data$KMeans_Cluster == positive_cluster
-} else if (THRESH_MODE == "gmm_dist_platelet") {
+} else if (THRESH_MODE == "gmm_dist_plagtelet") {
     pbmc@meta.data$Platelet_High
 } else if (THRESH_MODE == "gmm_dist_dual") {
     pbmc@meta.data$Platelet_High & pbmc@meta.data$Immune_High
